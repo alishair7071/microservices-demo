@@ -1,0 +1,65 @@
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--quiet"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  inventory-service:
+    build: ./inventory-service
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+      MONGO_URI: mongodb://mongo:27017/inventory_db
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "4002:4002"
+    environment:
+      PORT: 4002
+      MONGO_URI: mongodb://mongo:27017/payment_db
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/order_db
+      INVENTORY_SERVICE_URL: http://inventory-service:4001
+      PAYMENT_SERVICE_URL: http://payment-service:4002
+    depends_on:
+      mongo:
+        condition: service_healthy
+      inventory-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+    depends_on:
+      order-service:
+        condition: service_started
+
+volumes:
+  mongo-data:

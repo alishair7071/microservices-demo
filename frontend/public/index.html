@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microservices Demo</title>
+  <style>body{font-family:system-ui;max-width:760px;margin:32px auto;padding:0 16px}form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}input,select,button{padding:8px}li{margin:6px 0}.message{min-height:24px;color:#075}.error{color:#b00}</style>
+</head>
+<body>
+  <h1>Microservices Demo</h1>
+  <h2>Add product</h2>
+  <form id="product-form"><input name="name" placeholder="Product name" required><input name="stock" type="number" min="0" placeholder="Stock" required><button>Add product</button></form>
+  <h2>Products</h2>
+  <ul id="products"></ul>
+  <h2>Create order</h2>
+  <form id="order-form"><select id="product-id" required></select><input name="quantity" type="number" min="1" placeholder="Quantity" required><input name="customerName" placeholder="Customer name" required><button>Place order</button></form>
+  <p id="message" class="message"></p>
+  <h2>Orders <button id="refresh-orders">Refresh</button></h2>
+  <ul id="orders"></ul>
+  <script src="app.js"></script>
+</body>
+</html>
