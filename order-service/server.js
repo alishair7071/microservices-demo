@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -17,12 +20,31 @@ const Order = mongoose.model('Order', new mongoose.Schema({
 
 const inventoryUrl = process.env.INVENTORY_SERVICE_URL;
 const paymentUrl = process.env.PAYMENT_SERVICE_URL;
+const packageDefinition = protoLoader.loadSync(
+  path.join(__dirname, 'proto', 'inventory.proto'),
+  { keepCase: true }
+);
+const inventoryGrpc = grpc.loadPackageDefinition(packageDefinition).inventory;
+const inventoryClient = new inventoryGrpc.InventoryService(
+  process.env.INVENTORY_GRPC_ADDRESS,
+  grpc.credentials.createInsecure()
+);
 
 async function serviceJson(url, options) {
   const response = await fetch(url, options);
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || 'Service request failed');
   return body;
+}
+
+// Convert the callback-based gRPC client method into a Promise for use with await.
+function reduceStockByGrpc(productId, quantity) {
+  return new Promise((resolve, reject) => {
+    inventoryClient.ReduceStock(
+      { product_id: productId, quantity },
+      (error, response) => error ? reject(error) : resolve(response)
+    );
+  });
 }
 
 app.post('/products', async (req, res) => {
@@ -54,10 +76,7 @@ app.post('/orders', async (req, res) => {
     const product = products.find((item) => item._id === productId);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const stock = await serviceJson(`${inventoryUrl}/reduce-stock`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId, quantity })
-    });
+    const stock = await reduceStockByGrpc(productId, quantity);
     if (!stock.success) return res.status(400).json({ error: 'Not enough stock available' });
 
     const order = await Order.create({

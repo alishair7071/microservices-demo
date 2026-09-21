@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -10,6 +13,13 @@ const Product = mongoose.model('Product', new mongoose.Schema({
   name: String,
   stock: Number
 }));
+
+// Load the shared contract used by order-service and inventory-service.
+const packageDefinition = protoLoader.loadSync(
+  path.join(__dirname, 'proto', 'inventory.proto'),
+  { keepCase: true }
+);
+const inventoryGrpc = grpc.loadPackageDefinition(packageDefinition).inventory;
 
 async function seedProducts() {
   if (await Product.countDocuments() === 0) {
@@ -39,28 +49,57 @@ app.get('/products', async (_req, res) => {
   }
 });
 
-app.post('/reduce-stock', async (req, res) => {
+// This function is shared by the gRPC handler below. It is no longer a REST route.
+async function reduceStock(productId, quantity) {
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return { success: false, remaining_stock: 0 };
+  }
+
   try {
-    if (!Number.isFinite(req.body.quantity) || req.body.quantity <= 0) {
-      return res.status(400).json({ success: false, remainingStock: null, error: 'Quantity must be positive' });
-    }
     const product = await Product.findOneAndUpdate(
-      { _id: req.body.productId, stock: { $gte: req.body.quantity } },
-      { $inc: { stock: -req.body.quantity } },
+      { _id: productId, stock: { $gte: quantity } },
+      { $inc: { stock: -quantity } },
       { new: true }
     );
 
-    if (!product) return res.json({ success: false, remainingStock: null });
-    res.json({ success: true, remainingStock: product.stock });
+    if (!product) return { success: false, remaining_stock: 0 };
+    return { success: true, remaining_stock: product.stock };
   } catch (error) {
-    res.status(400).json({ success: false, remainingStock: null, error: 'Invalid product or quantity' });
+    return { success: false, remaining_stock: 0 };
   }
-});
+}
+
+// gRPC method called internally by order-service on port 50051.
+async function reduceStockGrpc(call, callback) {
+  const result = await reduceStock(
+    call.request.product_id,
+    call.request.quantity
+  );
+  callback(null, result);
+}
+
+function startGrpcServer() {
+  const grpcServer = new grpc.Server();
+  grpcServer.addService(inventoryGrpc.InventoryService.service, {
+    ReduceStock: reduceStockGrpc
+  });
+
+  grpcServer.bindAsync(
+    `0.0.0.0:${process.env.GRPC_PORT || 50051}`,
+    grpc.ServerCredentials.createInsecure(),
+    (error, port) => {
+      if (error) throw error;
+      grpcServer.start();
+      console.log(`Inventory gRPC server listening on ${port}`);
+    }
+  );
+}
 
 async function start() {
   await mongoose.connect(process.env.MONGO_URI);
   await seedProducts();
   app.listen(process.env.PORT || 4001, () => console.log('Inventory service listening'));
+  startGrpcServer();
 }
 
 start().catch((error) => { console.error(error); process.exit(1); });

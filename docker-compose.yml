@@ -13,9 +13,13 @@ services:
       retries: 10
 
   inventory-service:
-    build: ./inventory-service
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
     ports:
       - "4001:4001"
+    expose:
+      - "50051"
     environment:
       PORT: 4001
       MONGO_URI: mongodb://mongo:27017/inventory_db
@@ -35,13 +39,16 @@ services:
         condition: service_healthy
 
   order-service:
-    build: ./order-service
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
     ports:
       - "4000:4000"
     environment:
       PORT: 4000
       MONGO_URI: mongodb://mongo:27017/order_db
       INVENTORY_SERVICE_URL: http://inventory-service:4001
+      INVENTORY_GRPC_ADDRESS: inventory-service:50051
       PAYMENT_SERVICE_URL: http://payment-service:4002
     depends_on:
       mongo:

@@ -1,7 +1,9 @@
 FROM node:20-alpine
 WORKDIR /app
-COPY package*.json ./
+COPY inventory-service/package*.json ./
 RUN npm install --omit=dev
-COPY . .
+COPY proto ./proto
+COPY inventory-service/server.js ./
 EXPOSE 4001
+EXPOSE 50051
 CMD ["npm", "start"]
