@@ -12,6 +12,15 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5673:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+
   inventory-service:
     build:
       context: .
@@ -50,6 +59,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:4001
       INVENTORY_GRPC_ADDRESS: inventory-service:50051
       PAYMENT_SERVICE_URL: http://payment-service:4002
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
     depends_on:
       mongo:
         condition: service_healthy
@@ -57,6 +67,30 @@ services:
         condition: service_started
       payment-service:
         condition: service_started
+
+  email-service:
+    build:
+      context: .
+      dockerfile: email-service/Dockerfile
+    ports:
+      - "4003:4003"
+    environment:
+      PORT: 4003
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    ports:
+      - "4004:4004"
+    environment:
+      PORT: 4004
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+    depends_on:
+      - rabbitmq
 
   frontend:
     build: ./frontend

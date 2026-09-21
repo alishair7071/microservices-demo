@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Microservices Demo</title>
-  <style>body{font-family:system-ui;max-width:760px;margin:32px auto;padding:0 16px}form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}input,select,button{padding:8px}li{margin:6px 0}.message{min-height:24px;color:#075}.error{color:#b00}</style>
+  <style>body{font-family:system-ui;max-width:760px;margin:32px auto;padding:0 16px}form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}input,select,button{padding:8px}li{margin:6px 0}.message{min-height:24px;color:#075}.error{color:#b00}.email-item{margin:6px 0;padding:8px;background:#f5f5f5;border-radius:4px}</style>
 </head>
 <body>
   <h1>Microservices Demo</h1>
@@ -17,6 +17,10 @@
   <p id="message" class="message"></p>
   <h2>Orders <button id="refresh-orders">Refresh</button></h2>
   <ul id="orders"></ul>
+  <h2>Sent Emails</h2>
+  <div id="emails"></div>
+  <h2>Notifications</h2>
+  <ul id="notifications"></ul>
   <script src="app.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
+const amqp = require('amqplib');
 
 const app = express();
 app.use(cors());
@@ -29,6 +30,50 @@ const inventoryClient = new inventoryGrpc.InventoryService(
   process.env.INVENTORY_GRPC_ADDRESS,
   grpc.credentials.createInsecure()
 );
+
+// RabbitMQ setup
+const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://admin:admin@localhost:5673';
+const EXCHANGE_NAME = 'microservices.events';
+const RABBITMQ_ROUTING_KEY = 'order.created';
+
+async function publishOrderCreatedEvent(order) {
+  let connection;
+
+  while (true) {
+    try {
+      connection = await amqp.connect(RABBITMQ_URL);
+      connection.on('error', (error) => console.error('RabbitMQ connection error:', error.message));
+      connection.on('close', () => console.log('RabbitMQ connection closed'));
+
+      const channel = await connection.createChannel();
+      await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
+
+      const event = {
+        eventType: 'OrderCreated',
+        orderId: order._id.toString(),
+        userEmail: `${order.customerName.toLowerCase().replace(' ', '')}@example.com`, // Demo email
+        userName: order.customerName,
+        productId: order.productId,
+        quantity: order.quantity
+      };
+
+      await channel.publish(
+        EXCHANGE_NAME,
+        RABBITMQ_ROUTING_KEY,
+        Buffer.from(JSON.stringify(event)),
+        { persistent: true }
+      );
+
+      console.log(`Published OrderCreated event for order ${order._id}`);
+      await connection.close();
+      return;
+    } catch (error) {
+      console.error('Failed to publish OrderCreated event:', error.message);
+      if (connection) await connection.close().catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+}
 
 async function serviceJson(url, options) {
   const response = await fetch(url, options);
@@ -83,6 +128,7 @@ app.post('/orders', async (req, res) => {
       productId, productName: product.name, quantity, customerName,
       status: 'pending_payment', createdAt: new Date()
     });
+    await publishOrderCreatedEvent(order);
     res.status(201).json(order);
   } catch (error) {
     res.status(502).json({ error: `Order could not be created: ${error.message}` });

@@ -1,6 +1,8 @@
 // URLs exposed by Docker Compose on your computer.
 const orderApi = 'http://localhost:4000';
 const inventoryApi = 'http://localhost:4001';
+const emailApi = 'http://localhost:4003';
+const notificationApi = 'http://localhost:4004';
 
 // HTML elements we update from JavaScript.
 const productsList = document.querySelector('#products');
@@ -46,6 +48,51 @@ async function loadProducts() {
       `<option value="${product._id}">${product.name} (${product.stock} available)</option>`
     ))
     .join('');
+}
+
+// Fetch all sent emails from email-service and render them.
+// We fetch from the Docker host because the frontend runs in its own container.
+async function loadEmails() {
+  try {
+    const response = await fetch(`${emailApi}/emails`);
+    const emails = await response.json();
+
+    const emailsHtml = emails
+      .map((email) => `
+        <div class="email-item">
+          <strong>To:</strong> ${email.to}<br>
+          <strong>Subject:</strong> ${email.subject}<br>
+          <strong>Order ID:</strong> ${email.orderId}<br>
+          <em>${email.message}</em>
+        </div>
+        <hr>
+      `)
+      .join('');
+
+    document.querySelector('#emails').innerHTML = emailsHtml || '<li>No emails yet</li>';
+  } catch (error) {
+    console.error('Could not fetch emails:', error);
+  }
+}
+
+// Fetch all notifications from notification-service and render them.
+async function loadNotifications() {
+  try {
+    const response = await fetch(`${notificationApi}/notifications`);
+    const notifications = await response.json();
+
+    const notificationsHtml = notifications
+      .map((n) => `
+        <li>
+          <strong>${n.userName}</strong> ${n.message}
+        </li>
+      `)
+      .join('');
+
+    document.querySelector('#notifications').innerHTML = notificationsHtml || '<li>No notifications yet</li>';
+  } catch (error) {
+    console.error('Could not fetch notifications:', error);
+  }
 }
 
 // Fetch all saved orders from order-service and render them.
@@ -114,7 +161,7 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
 
     event.target.reset();
     showMessage(`Order ${order._id} created. Click Pay when ready.`);
-    await Promise.all([loadProducts(), loadOrders()]);
+    await Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications()]);
   } catch (error) {
     showMessage(error.message, true);
   }
@@ -142,5 +189,5 @@ ordersList.addEventListener('click', async (event) => {
 // Refresh button and initial page load.
 document.querySelector('#refresh-orders').addEventListener('click', loadOrders);
 
-Promise.all([loadProducts(), loadOrders()])
+Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications()])
   .catch((error) => showMessage(error.message, true));
