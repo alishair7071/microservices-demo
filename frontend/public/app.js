@@ -28,6 +28,20 @@ function updateMetric(id, value) {
   document.querySelector(`#${id}`).textContent = value;
 }
 
+function displayValue(value) {
+  return value === undefined || value === null || value === '' ? '—' : escapeHtml(value);
+}
+
+function formatTimestamp(timestamp) {
+  if (!timestamp) return '—';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return escapeHtml(timestamp);
+  return date.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+
 // Show a green success message or a red error message below the order form.
 function showMessage(text, isError = false) {
   message.textContent = text;
@@ -90,6 +104,48 @@ function renderEmails(emails, instanceName) {
     : emptyState(`No emails consumed by ${instanceName} yet.`);
 }
 
+function renderKafkaEmails(emails, instanceName) {
+  return emails.length
+    ? emails.slice().reverse().map((email) => `
+        <div class="event-item kafka-event">
+          <span class="event-mark mail">K</span>
+          <div class="event-copy">
+            <div class="item-title">Payment approved for ${displayValue(email.customerName)}</div>
+            <div class="item-meta">Email: ${displayValue(email.to)} · Product: ${displayValue(email.productName)} × ${displayValue(email.quantity)}</div>
+            <div class="event-details">
+              <span><b>Amount</b>${displayValue(email.amount)}</span>
+              <span><b>Event created</b>${formatTimestamp(email.eventCreatedAt)}</span>
+              <span><b>Consumed</b>${formatTimestamp(email.consumedAt || email.createdAt)}</span>
+              <span><b>Consumer</b>${displayValue(email.consumedBy || instanceName)}</span>
+            </div>
+            <div class="item-meta event-id">Order: ${displayValue(email.orderId)} · Payment: ${displayValue(email.paymentId)}</div>
+          </div>
+        </div>
+      `).join('')
+    : emptyState(`No Kafka events consumed by ${instanceName} yet.`);
+}
+
+function renderKafkaNotifications(notifications) {
+  return notifications.length
+    ? notifications.slice().reverse().map((notification) => `
+        <div class="event-item kafka-event">
+          <span class="event-mark">K</span>
+          <div class="event-copy">
+            <div class="item-title">Payment approved for ${displayValue(notification.customerName)}</div>
+            <div class="item-meta">Product: ${displayValue(notification.productName)} × ${displayValue(notification.quantity)}</div>
+            <div class="event-details">
+              <span><b>Amount</b>${displayValue(notification.amount)}</span>
+              <span><b>Event created</b>${formatTimestamp(notification.eventCreatedAt)}</span>
+              <span><b>Consumed</b>${formatTimestamp(notification.consumedAt || notification.createdAt)}</span>
+              <span><b>Consumer</b>${displayValue(notification.consumedBy)}</span>
+            </div>
+            <div class="item-meta event-id">Order: ${displayValue(notification.orderId)} · Payment: ${displayValue(notification.paymentId)}</div>
+          </div>
+        </div>
+      `).join('')
+    : emptyState('No Kafka notifications received yet.');
+}
+
 async function loadEmailInstance(api, elementId, instanceName) {
   const response = await fetch(`${api}/emails`);
   const emails = await response.json();
@@ -108,9 +164,27 @@ async function loadEmails() {
     ]);
 
     currentEmailCount = emailCountA + emailCountB;
-    updateMetric('event-count', currentEmailCount + currentNotificationCount);
+    updateMetric('event-count', currentEmailCount + currentNotificationCount + currentKafkaEmailCount + currentKafkaNotificationCount);
   } catch (error) {
     console.error('Could not fetch emails:', error);
+  }
+}
+
+async function loadKafkaEmails() {
+  try {
+    const [responseA, responseB] = await Promise.all([
+      fetch(`${emailServiceAApi}/kafka/emails`),
+      fetch(`${emailServiceBApi}/kafka/emails`)
+    ]);
+    const [dataA, dataB] = await Promise.all([responseA.json(), responseB.json()]);
+    if (!responseA.ok || !responseB.ok) throw new Error('Could not fetch Kafka email events');
+
+    document.querySelector('#kafka-emails-a').innerHTML = renderKafkaEmails(dataA.emails, 'email-service-A');
+    document.querySelector('#kafka-emails-b').innerHTML = renderKafkaEmails(dataB.emails, 'email-service-B');
+    currentKafkaEmailCount = dataA.emails.length + dataB.emails.length;
+    updateMetric('event-count', currentEmailCount + currentNotificationCount + currentKafkaEmailCount + currentKafkaNotificationCount);
+  } catch (error) {
+    console.error('Could not fetch Kafka emails:', error);
   }
 }
 
@@ -121,7 +195,7 @@ async function loadNotifications() {
     const notifications = await response.json();
 
     currentNotificationCount = notifications.length;
-    updateMetric('event-count', currentEmailCount + currentNotificationCount);
+    updateMetric('event-count', currentEmailCount + currentNotificationCount + currentKafkaEmailCount + currentKafkaNotificationCount);
     const notificationsHtml = notifications.length
       ? notifications.slice().reverse().map((n) => `
         <div class="event-item">
@@ -137,8 +211,24 @@ async function loadNotifications() {
   }
 }
 
+async function loadKafkaNotifications() {
+  try {
+    const response = await fetch(`${notificationApi}/kafka/notifications`);
+    const data = await response.json();
+    if (!response.ok) throw new Error('Could not fetch Kafka notifications');
+
+    document.querySelector('#kafka-notifications').innerHTML = renderKafkaNotifications(data.notifications);
+    currentKafkaNotificationCount = data.notifications.length;
+    updateMetric('event-count', currentEmailCount + currentNotificationCount + currentKafkaEmailCount + currentKafkaNotificationCount);
+  } catch (error) {
+    console.error('Could not fetch Kafka notifications:', error);
+  }
+}
+
 let currentEmailCount = 0;
 let currentNotificationCount = 0;
+let currentKafkaEmailCount = 0;
+let currentKafkaNotificationCount = 0;
 
 // Fetch all saved orders from order-service and render them.
 // A Pay button is shown only while an order is waiting for payment.
@@ -208,7 +298,8 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
   const newOrder = {
     productId: productSelect.value,
     quantity: Number(form.get('quantity')),
-    customerName: form.get('customerName')
+    customerName: form.get('customerName'),
+    userEmail: form.get('userEmail')
   };
 
   try {
@@ -221,7 +312,7 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
     event.target.reset();
     showMessage(`Order ${order._id} created. Click Pay when ready.`);
     await new Promise((resolve) => setTimeout(resolve, 500));
-    await Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications()]);
+    await Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()]);
   } catch (error) {
     showMessage(error.message, true);
   }
@@ -254,7 +345,8 @@ ordersList.addEventListener('click', async (event) => {
     });
 
     showMessage(`Payment successful. Transaction: ${result.transactionId}`);
-    await loadOrders(); // The order now displays as paid.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await Promise.all([loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()]);
   } catch (error) {
     showMessage(error.message, true);
   }
@@ -263,5 +355,5 @@ ordersList.addEventListener('click', async (event) => {
 // Refresh button and initial page load.
 document.querySelector('#refresh-orders').addEventListener('click', loadOrders);
 
-Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications()])
+Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
   .catch((error) => showMessage(error.message, true));

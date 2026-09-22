@@ -1,0 +1,7 @@
+# The root Docker build context is used by email and notification services.
+**/node_modules
+.git
+.gitignore
+*.log
+.env
+.env.*

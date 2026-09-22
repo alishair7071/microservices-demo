@@ -1,10 +1,14 @@
 const express = require('express');
 
-function createNotificationRoutes(notifications, isReady) {
+function createNotificationRoutes(notifications, kafkaNotifications, isReady) {
   const router = express.Router();
 
   router.get('/notifications', (_req, res) => {
     res.json(notifications);
+  });
+
+  router.get('/kafka/notifications', (_req, res) => {
+    res.json({ notifications: kafkaNotifications });
   });
 
   router.get('/health', (_req, res) => {

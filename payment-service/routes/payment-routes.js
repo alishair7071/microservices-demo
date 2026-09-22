@@ -1,18 +1,25 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
 const Payment = require('../models/payment');
+const { publishPaymentApproved } = require('../kafka/kafka-producer');
 
 const router = express.Router();
 
 router.post('/charge', async (req, res) => {
   try {
     const transactionId = randomUUID();
-    await Payment.create({
+    const payment = await Payment.create({
       orderId: req.body.orderId,
       amount: req.body.amount,
       status: 'succeeded',
       transactionId,
       createdAt: new Date()
+    });
+    await publishPaymentApproved(payment, {
+      userEmail: req.body.userEmail,
+      customerName: req.body.customerName,
+      productName: req.body.productName,
+      quantity: req.body.quantity
     });
     res.json({ success: true, transactionId });
   } catch (error) {

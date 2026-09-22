@@ -5,6 +5,7 @@ module.exports = mongoose.model('Order', new mongoose.Schema({
   productName: String,
   quantity: Number,
   customerName: String,
+  userEmail: String,
   status: String,
   createdAt: Date
 }));

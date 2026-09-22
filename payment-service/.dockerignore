@@ -1,0 +1,6 @@
+# payment-service is built from this directory as its Docker build context.
+node_modules
+.git
+*.log
+.env
+.env.*
