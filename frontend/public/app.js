@@ -10,6 +10,23 @@ const productSelect = document.querySelector('#product-id');
 const ordersList = document.querySelector('#orders');
 const message = document.querySelector('#message');
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function emptyState(text) {
+  return `<div class="empty">${escapeHtml(text)}</div>`;
+}
+
+function updateMetric(id, value) {
+  document.querySelector(`#${id}`).textContent = value;
+}
+
 // Show a green success message or a red error message below the order form.
 function showMessage(text, isError = false) {
   message.textContent = text;
@@ -39,15 +56,20 @@ async function loadProducts() {
     throw new Error(products.error || 'Could not fetch products');
   }
 
-  productsList.innerHTML = products
-    .map((product) => `<li>${product.name} — ${product.stock} in stock</li>`)
-    .join('');
+  updateMetric('product-count', products.length);
+  updateMetric('stock-count', products.reduce((total, product) => total + product.stock, 0));
+
+  productsList.innerHTML = products.length
+    ? products.map((product) => `
+        <div class="product-item">
+          <div><div class="item-title">${escapeHtml(product.name)}</div><div class="item-meta">Inventory service / REST</div></div>
+          <div class="item-actions"><span class="stock ${product.stock < 5 ? 'low' : ''}">${product.stock} in stock</span><button class="delete" type="button" data-delete-product="${escapeHtml(product._id)}">Delete</button></div>
+        </div>
+      `).join('')
+    : emptyState('No products yet. Add the first item above.');
 
   productSelect.innerHTML = products
-    .map((product) => (
-      `<option value="${product._id}">${product.name} (${product.stock} available)</option>`
-    ))
-    .join('');
+    .map((product) => `<option value="${escapeHtml(product._id)}" ${product.stock === 0 ? 'disabled' : ''}>${escapeHtml(product.name)} (${product.stock} available)</option>`).join('');
 }
 
 // Fetch all sent emails from email-service and render them.
@@ -57,17 +79,16 @@ async function loadEmails() {
     const response = await fetch(`${emailApi}/emails`);
     const emails = await response.json();
 
-    const emailsHtml = emails
-      .map((email) => `
-        <div class="email-item">
-          <strong>To:</strong> ${email.to}<br>
-          <strong>Subject:</strong> ${email.subject}<br>
-          <strong>Order ID:</strong> ${email.orderId}<br>
-          <em>${email.message}</em>
+    currentEmailCount = emails.length;
+    updateMetric('event-count', currentEmailCount + currentNotificationCount);
+    const emailsHtml = emails.length
+      ? emails.slice().reverse().map((email) => `
+        <div class="event-item">
+          <span class="event-mark mail">@</span>
+          <div class="event-copy"><div class="item-title">Email sent to ${escapeHtml(email.to)}</div><div class="item-meta">${escapeHtml(email.subject)} / order ${escapeHtml(email.orderId)}</div></div>
         </div>
-        <hr>
-      `)
-      .join('');
+      `).join('')
+      : emptyState('No email events received yet.');
 
     document.querySelector('#emails').innerHTML = emailsHtml || '<li>No emails yet</li>';
   } catch (error) {
@@ -81,34 +102,39 @@ async function loadNotifications() {
     const response = await fetch(`${notificationApi}/notifications`);
     const notifications = await response.json();
 
-    const notificationsHtml = notifications
-      .map((n) => `
-        <li>
-          <strong>${n.userName}</strong> ${n.message}
-        </li>
-      `)
-      .join('');
+    currentNotificationCount = notifications.length;
+    updateMetric('event-count', currentEmailCount + currentNotificationCount);
+    const notificationsHtml = notifications.length
+      ? notifications.slice().reverse().map((n) => `
+        <div class="event-item">
+          <span class="event-mark">!</span>
+          <div class="event-copy"><div class="item-title">Notification for ${escapeHtml(n.userName)}</div><div class="item-meta">${escapeHtml(n.message)}</div></div>
+        </div>
+      `).join('')
+      : emptyState('No notification events received yet.');
 
-    document.querySelector('#notifications').innerHTML = notificationsHtml || '<li>No notifications yet</li>';
+    document.querySelector('#notifications').innerHTML = notificationsHtml;
   } catch (error) {
     console.error('Could not fetch notifications:', error);
   }
 }
+
+let currentEmailCount = 0;
+let currentNotificationCount = 0;
 
 // Fetch all saved orders from order-service and render them.
 // A Pay button is shown only while an order is waiting for payment.
 async function loadOrders() {
   const orders = await orderRequest('/orders');
 
-  ordersList.innerHTML = orders
-    .map((order) => {
+  updateMetric('order-count', orders.length);
+  ordersList.innerHTML = orders.length ? orders.map((order) => {
       const payButton = order.status === 'pending_payment'
-        ? `<button data-pay-id="${order._id}">Pay</button>`
+        ? `<button class="pay" data-pay-id="${escapeHtml(order._id)}">Pay</button>`
         : '';
 
-      return `<li>${order.productName} × ${order.quantity} for ${order.customerName} — ${order.status} ${payButton}</li>`;
-    })
-    .join('');
+      return `<div class="order-item"><div><div class="item-title">${escapeHtml(order.productName)} <span class="item-meta">x ${order.quantity}</span></div><div class="item-meta">For ${escapeHtml(order.customerName)} / ${escapeHtml(order._id)}</div></div><div class="item-actions">${payButton}<span class="status ${escapeHtml(order.status)}">${escapeHtml(order.status.replace('_', ' '))}</span><button class="delete" type="button" data-delete-order="${escapeHtml(order._id)}">Delete</button></div></div>`;
+    }).join('') : emptyState('No orders yet. Create one to start the flow.');
 }
 
 // Add a product directly to inventory-service.
@@ -136,6 +162,21 @@ document.querySelector('#product-form').addEventListener('submit', async (event)
     event.target.reset();
     showMessage('Product added.');
     await loadProducts(); // Refresh stock list and order dropdown.
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+});
+
+productsList.addEventListener('click', async (event) => {
+  const productId = event.target.closest('[data-delete-product]')?.dataset.deleteProduct;
+  if (!productId || !window.confirm('Delete this product?')) return;
+
+  try {
+    const response = await fetch(`${inventoryApi}/products/${productId}`, { method: 'DELETE' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not delete product');
+    showMessage('Product deleted.');
+    await loadProducts();
   } catch (error) {
     showMessage(error.message, true);
   }
@@ -169,7 +210,21 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
 
 // Use one click listener for every current/future Pay button in the order list.
 ordersList.addEventListener('click', async (event) => {
-  const orderId = event.target.dataset.payId;
+  const orderId = event.target.closest('[data-pay-id]')?.dataset.payId;
+  const deleteOrderId = event.target.closest('[data-delete-order]')?.dataset.deleteOrder;
+
+  if (deleteOrderId) {
+    if (!window.confirm('Delete this order?')) return;
+
+    try {
+      const result = await orderRequest(`/orders/${deleteOrderId}`, { method: 'DELETE' });
+      showMessage(result.success ? 'Order deleted.' : 'Could not delete order.', !result.success);
+      await loadOrders();
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+    return;
+  }
 
   // Ignore clicks that were not on a Pay button.
   if (!orderId) return;
