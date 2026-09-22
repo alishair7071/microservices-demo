@@ -1,7 +1,8 @@
 // URLs exposed by Docker Compose on your computer.
 const orderApi = 'http://localhost:4000';
 const inventoryApi = 'http://localhost:4001';
-const emailApi = 'http://localhost:4003';
+const emailServiceAApi = 'http://localhost:4003';
+const emailServiceBApi = 'http://localhost:4005';
 const notificationApi = 'http://localhost:4004';
 
 // HTML elements we update from JavaScript.
@@ -74,23 +75,40 @@ async function loadProducts() {
 
 // Fetch all sent emails from email-service and render them.
 // We fetch from the Docker host because the frontend runs in its own container.
-async function loadEmails() {
-  try {
-    const response = await fetch(`${emailApi}/emails`);
-    const emails = await response.json();
-
-    currentEmailCount = emails.length;
-    updateMetric('event-count', currentEmailCount + currentNotificationCount);
-    const emailsHtml = emails.length
-      ? emails.slice().reverse().map((email) => `
+function renderEmails(emails, instanceName) {
+  return emails.length
+    ? emails.slice().reverse().map((email) => `
         <div class="event-item">
           <span class="event-mark mail">@</span>
-          <div class="event-copy"><div class="item-title">Email sent to ${escapeHtml(email.to)}</div><div class="item-meta">${escapeHtml(email.subject)} / order ${escapeHtml(email.orderId)}</div></div>
+          <div class="event-copy">
+            <div class="item-title">Email sent to ${escapeHtml(email.to)}</div>
+            <div class="item-meta">Subject: ${escapeHtml(email.subject)} / order: ${escapeHtml(email.orderId)}</div>
+            <div class="item-meta">Consumed by: ${escapeHtml(email.consumedBy || instanceName)} / ${escapeHtml(email.createdAt)}</div>
+          </div>
         </div>
       `).join('')
-      : emptyState('No email events received yet.');
+    : emptyState(`No emails consumed by ${instanceName} yet.`);
+}
 
-    document.querySelector('#emails').innerHTML = emailsHtml || '<li>No emails yet</li>';
+async function loadEmailInstance(api, elementId, instanceName) {
+  const response = await fetch(`${api}/emails`);
+  const emails = await response.json();
+
+  if (!response.ok) throw new Error(emails.error || `Could not fetch ${instanceName} emails`);
+  document.querySelector(`#${elementId}`).innerHTML = renderEmails(emails, instanceName);
+  return emails.length;
+}
+
+// Fetch both local in-memory email lists. RabbitMQ decides which instance receives each message.
+async function loadEmails() {
+  try {
+    const [emailCountA, emailCountB] = await Promise.all([
+      loadEmailInstance(emailServiceAApi, 'emails-a', 'email-service-A'),
+      loadEmailInstance(emailServiceBApi, 'emails-b', 'email-service-B')
+    ]);
+
+    currentEmailCount = emailCountA + emailCountB;
+    updateMetric('event-count', currentEmailCount + currentNotificationCount);
   } catch (error) {
     console.error('Could not fetch emails:', error);
   }
@@ -202,6 +220,7 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
 
     event.target.reset();
     showMessage(`Order ${order._id} created. Click Pay when ready.`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications()]);
   } catch (error) {
     showMessage(error.message, true);

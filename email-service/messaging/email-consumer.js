@@ -1,7 +1,7 @@
 const amqp = require('amqplib');
 const config = require('../config');
 
-async function startEmailConsumer(sentEmails, setReady) {
+async function startEmailConsumer(sentEmails, setReady, instanceName) {
   let connection;
 
   while (true) {
@@ -18,17 +18,18 @@ async function startEmailConsumer(sentEmails, setReady) {
       await channel.assertQueue(config.queueName, { durable: true });
       await channel.bindQueue(config.queueName, config.exchangeName, config.routingKey);
 
-      console.log(`Email service consuming from ${config.queueName}`);
+      console.log(`${instanceName} consuming from ${config.queueName}`);
       channel.consume(config.queueName, (message) => {
         if (!message) return;
         try {
           const event = JSON.parse(message.content.toString());
-          console.log(`Email sent to ${event.userEmail} for order ${event.orderId}`);
+          console.log(`${instanceName} sent email to ${event.userEmail} for order ${event.orderId}`);
           sentEmails.push({
             to: event.userEmail,
             subject: 'Order Created',
             orderId: event.orderId,
             message: 'Your order has been created',
+            consumedBy: instanceName,
             createdAt: new Date().toISOString()
           });
           channel.ack(message);

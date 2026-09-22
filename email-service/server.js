@@ -9,15 +9,16 @@ app.use(cors());
 app.use(express.json());
 
 const sentEmails = [];
+const instanceName = process.env.EMAIL_SERVICE_NAME || 'email-service';
 let consumerReady = false;
 const isReady = () => consumerReady;
 const setReady = (value) => { consumerReady = value; };
 
-app.use(createEmailRoutes(sentEmails, isReady));
+app.use(createEmailRoutes(sentEmails, isReady, instanceName));
 
 async function start() {
   app.listen(config.port, () => console.log(`Email service listening on port ${config.port}`));
-  startEmailConsumer(sentEmails, setReady);
+  startEmailConsumer(sentEmails, setReady, instanceName);
 }
 
 start().catch((error) => { console.error(error); process.exit(1); });

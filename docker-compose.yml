@@ -59,17 +59,40 @@ services:
         condition: service_started
       payment-service:
         condition: service_started
-      email-service:
+      email-service-a:
+        condition: service_healthy
+      email-service-b:
         condition: service_healthy
       notification-service:
         condition: service_healthy
 
-  email-service:
+  email-service-a:
+    image: microservices-demo-email-service:latest
     build:
       context: .
       dockerfile: email-service/Dockerfile
     ports:
       - "4003:4003"
+    environment:
+      EMAIL_SERVICE_NAME: email-service-A
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4003/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  email-service-b:
+    image: microservices-demo-email-service:latest
+    build:
+      context: .
+      dockerfile: email-service/Dockerfile
+    ports:
+      - "4005:4003"
+    environment:
+      EMAIL_SERVICE_NAME: email-service-B
     depends_on:
       rabbitmq:
         condition: service_healthy

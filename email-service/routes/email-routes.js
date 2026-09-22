@@ -1,6 +1,6 @@
 const express = require('express');
 
-function createEmailRoutes(sentEmails, isReady) {
+function createEmailRoutes(sentEmails, isReady, instanceName) {
   const router = express.Router();
 
   router.get('/emails', (_req, res) => {
@@ -10,7 +10,8 @@ function createEmailRoutes(sentEmails, isReady) {
   router.get('/health', (_req, res) => {
     res.status(isReady() ? 200 : 503).json({
       status: isReady() ? 'ok' : 'starting',
-      service: 'email-service'
+      service: 'email-service',
+      instance: instanceName
     });
   });
 

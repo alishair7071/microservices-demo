@@ -155,19 +155,31 @@
         <div id="orders" class="collection" aria-live="polite"></div>
       </section>
 
-      <!-- Row 2, Col 1: Email -->
+      <!-- Row 2, Col 1: Email service A -->
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
-            <h2>Email</h2>
-            <p class="subtle">Messages handled by the email service.</p>
+            <h2>Email Service A</h2>
+            <p class="subtle">Same image, competing on the shared email queue.</p>
           </div>
-          <span class="mono">consumer / email</span>
+          <span class="mono">localhost:4003</span>
         </div>
-        <div id="emails" class="collection"></div>
+        <div id="emails-a" class="collection"></div>
       </section>
 
-      <!-- Row 2, Col 2: Notifications -->
+      <!-- Row 2, Col 2: Email service B -->
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Email Service B</h2>
+            <p class="subtle">Same image, competing on the shared email queue.</p>
+          </div>
+          <span class="mono">localhost:4005</span>
+        </div>
+        <div id="emails-b" class="collection"></div>
+      </section>
+
+      <!-- Row 3: Notifications -->
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
