@@ -203,6 +203,20 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
+            <h2>Retry Lab</h2>
+            <p class="subtle">One click sends up to three requests. The demo service fails twice, then succeeds; Order Service waits longer between attempts and adds jitter.</p>
+          </div>
+          <span class="mono">Retries / demo</span>
+        </div>
+        <div class="gateway-actions">
+          <button class="secondary" id="send-retry-request" type="button">Send Retry Request</button>
+        </div>
+        <div id="retry-demo-result" class="collection" aria-live="polite"></div>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
             <h2>RabbitMQ Email Service A</h2>
             <p class="subtle">RabbitMQ consumer / shared queue.</p>
           </div>

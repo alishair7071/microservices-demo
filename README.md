@@ -17,7 +17,7 @@ Open the frontend at `http://localhost:3000`. Browser requests go through Kong a
 | Payment | Saves payments and publishes a `PaymentApproved` Kafka event. |
 | Email A/B | Consume RabbitMQ and Kafka messages. |
 | Notification | Consumes RabbitMQ and Kafka messages. |
-| Resilience demo | Returns a simple JSON response, immediately or after 5 seconds. |
+| Resilience demo | Provides simple responses for the circuit breaker, timeout, and retry labs. |
 | Kong | Routes frontend requests to the services; also demonstrates load balancing and rate limiting. |
 
 The main order flow is:
@@ -50,3 +50,7 @@ The frontend has one **Send Protected Request** button. The request travels thro
 - **Unavailable service:** run `docker compose stop resilience-demo-service`, then click the button repeatedly. After three failures, the circuit opens and rejects requests immediately. Run `docker compose start resilience-demo-service`, wait 15 seconds, and click again to test recovery.
 
 Keep Order Service running during this lab because the breaker lives there.
+
+## Retry lab
+
+Click **Send Retry Request** once in the frontend. Order Service makes a safe GET request to the Resilience Demo Service. The demo returns `503` for attempts 1 and 2, then `200` for attempt 3. Order Service waits `200–300 ms` and `400–500 ms` between attempts (exponential backoff plus jitter). The frontend shows every attempt, wait, and the final result. The retry logic is in `order-service/routes/retry-demo-routes.js`.

@@ -5,6 +5,7 @@ const config = require('./config');
 const productRoutes = require('./routes/product-routes');
 const orderRoutes = require('./routes/order-routes');
 const circuitBreakerDemoRoutes = require('./routes/circuit-breaker-demo-routes');
+const retryDemoRoutes = require('./routes/retry-demo-routes');
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use('/products', productRoutes);
 app.use('/orders', orderRoutes);
 app.use('/resilience/circuit-breaker-demo', circuitBreakerDemoRoutes);
+app.use('/resilience/retry-demo', retryDemoRoutes);
 
 async function start() {
   await mongoose.connect(config.mongoUri);

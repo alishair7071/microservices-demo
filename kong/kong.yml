@@ -26,6 +26,14 @@ services:
           - /api/circuit-breaker-demo
         strip_path: true
 
+  - name: retry-demo
+    url: http://order-service:4000/resilience/retry-demo
+    routes:
+      - name: retry-demo
+        paths:
+          - /api/retry-demo
+        strip_path: true
+
   - name: email-service-a
     url: http://email-service-a:4003/emails
     routes:

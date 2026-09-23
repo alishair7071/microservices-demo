@@ -5,6 +5,7 @@ const ordersList = document.querySelector('#orders');
 const message = document.querySelector('#message');
 const gatewayTestResult = document.querySelector('#gateway-test-result');
 const circuitBreakerResult = document.querySelector('#circuit-breaker-result');
+const retryDemoResult = document.querySelector('#retry-demo-result');
 
 function escapeHtml(value) {
   return String(value)
@@ -73,6 +74,29 @@ async function runCircuitBreakerDemo() {
     showCircuitBreakerResult(data, !response.ok);
   } catch (error) {
     showCircuitBreakerResult({ message: `Request could not be sent: ${error.message}` }, true);
+  }
+}
+
+async function runRetryDemo() {
+  const button = document.querySelector('#send-retry-request');
+  button.disabled = true;
+  retryDemoResult.innerHTML = '<div class="gateway-result">Order Service is making the attempts...</div>';
+
+  try {
+    const response = await fetch('http://localhost:8000/api/retry-demo');
+    const data = await response.json();
+    retryDemoResult.innerHTML = `
+      <div class="gateway-result ${response.ok ? '' : 'error'}">
+        <strong>${escapeHtml(data.message || 'Retry request failed')}</strong>
+        ${(data.attempts || []).map((attempt) => `
+          <span>Attempt ${escapeHtml(attempt.number)}: ${escapeHtml(attempt.status)} — ${escapeHtml(attempt.message)}${attempt.waitMs === undefined ? '' : ` — waited ${escapeHtml(attempt.waitMs)} ms before the next attempt`}</span>
+        `).join('')}
+      </div>
+    `;
+  } catch (error) {
+    retryDemoResult.innerHTML = `<div class="gateway-result error">${escapeHtml(`Request could not reach Order Service: ${error.message}`)}</div>`;
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -419,6 +443,7 @@ document.querySelector('#refresh-orders').addEventListener('click', loadOrders);
 document.querySelector('#test-load-balancing').addEventListener('click', testLoadBalancing);
 document.querySelector('#test-rate-limit').addEventListener('click', testRateLimit);
 document.querySelector('#send-circuit-request').addEventListener('click', runCircuitBreakerDemo);
+document.querySelector('#send-retry-request').addEventListener('click', runRetryDemo);
 
 Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
   .catch((error) => showMessage(error.message, true));
