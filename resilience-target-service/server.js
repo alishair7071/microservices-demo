@@ -11,7 +11,7 @@ http.createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === '/health') {
-    return sendJson(response, 200, { status: 'ok', service: 'resilience-demo-service' });
+    return sendJson(response, 200, { status: 'ok', service: 'resilience-target-service' });
   }
 
   // Simulate a temporary problem: attempts 1 and 2 fail; attempt 3 succeeds.
@@ -50,4 +50,4 @@ http.createServer((request, response) => {
       respondedAt: new Date().toISOString()
     });
   }, delayMs);
-}).listen(port, () => console.log(`Resilience demo service listening on port ${port}`));
+}).listen(port, () => console.log(`Resilience Target Service listening on port ${port}`));

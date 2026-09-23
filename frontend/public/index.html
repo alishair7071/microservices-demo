@@ -184,9 +184,9 @@
         <div class="panel-heading">
           <div>
             <h2>Circuit Breaker Lab</h2>
-            <p class="subtle">One protected request to a separate demo service. Stop that service to create connection failures, or select a slow response to test the timeout.</p>
+            <p class="subtle">One protected request through the Resilience Lab Service. Stop the target service to create connection failures, or select a slow response to test the timeout.</p>
           </div>
-          <span class="mono">Opossum / demo</span>
+          <span class="mono">Resilience Lab</span>
         </div>
         <div class="gateway-actions">
           <label>Response mode
@@ -204,7 +204,7 @@
         <div class="panel-heading">
           <div>
             <h2>Retry Lab</h2>
-            <p class="subtle">One click sends up to three requests. The demo service fails twice, then succeeds; Order Service waits longer between attempts and adds jitter.</p>
+            <p class="subtle">One click sends up to three requests. The target fails twice, then succeeds; the Resilience Lab Service waits longer between attempts and adds jitter.</p>
           </div>
           <span class="mono">Retries / demo</span>
         </div>

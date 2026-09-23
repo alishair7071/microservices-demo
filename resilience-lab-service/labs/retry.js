@@ -7,7 +7,7 @@ router.get('/', async (_req, res) => {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await fetch(`http://resilience-demo-service:4010/retry?attempt=${attempt}`);
+      const response = await fetch(`http://resilience-target-service:4010/retry?attempt=${attempt}`);
       const body = await response.json();
 
       attempts.push({
@@ -22,7 +22,7 @@ router.get('/', async (_req, res) => {
 
       // Only a temporary 503 response is worth trying again.
       if (response.status !== 503) {
-        return res.status(502).json({ success: false, message: 'Downstream returned a permanent error.', attempts });
+        return res.status(502).json({ success: false, message: 'Target returned a permanent error.', attempts });
       }
     } catch (error) {
       // A connection failure may be temporary, so it also gets another attempt.

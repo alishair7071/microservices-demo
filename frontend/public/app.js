@@ -80,7 +80,7 @@ async function runCircuitBreakerDemo() {
 async function runRetryDemo() {
   const button = document.querySelector('#send-retry-request');
   button.disabled = true;
-  retryDemoResult.innerHTML = '<div class="gateway-result">Order Service is making the attempts...</div>';
+  retryDemoResult.innerHTML = '<div class="gateway-result">Resilience Lab Service is making the attempts...</div>';
 
   try {
     const response = await fetch('http://localhost:8000/api/retry-demo');
@@ -94,7 +94,7 @@ async function runRetryDemo() {
       </div>
     `;
   } catch (error) {
-    retryDemoResult.innerHTML = `<div class="gateway-result error">${escapeHtml(`Request could not reach Order Service: ${error.message}`)}</div>`;
+    retryDemoResult.innerHTML = `<div class="gateway-result error">${escapeHtml(`Request could not reach the Resilience Lab Service: ${error.message}`)}</div>`;
   } finally {
     button.disabled = false;
   }
