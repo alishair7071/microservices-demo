@@ -1,84 +1,92 @@
 const express = require('express');
 const Order = require('../models/order');
-const { serviceJson } = require('../lib/http-client');
 const { reduceStock } = require('../grpc/inventory-client');
 const { publishOrderCreated } = require('../messaging/order-events');
 
-function createOrderRoutes({ inventoryUrl, paymentUrl }) {
-  const router = express.Router();
+const router = express.Router();
 
-  router.post('/', async (req, res) => {
-    const { productId, quantity, customerName, userEmail } = req.body;
-    try {
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        return res.status(400).json({ error: 'Quantity must be positive' });
-      }
-      if (!userEmail) return res.status(400).json({ error: 'Customer email is required' });
-      const products = await serviceJson(`${inventoryUrl}/products`);
-      const product = products.find((item) => item._id === productId);
-      if (!product) return res.status(404).json({ error: 'Product not found' });
+router.post('/', async (req, res) => {
+  const { productId, quantity, customerName, userEmail } = req.body;
 
-      const stock = await reduceStock(productId, quantity);
-      if (!stock.success) return res.status(400).json({ error: 'Not enough stock available' });
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return res.status(400).json({ error: 'Quantity must be positive' });
+  }
+  if (!userEmail) return res.status(400).json({ error: 'Customer email is required' });
 
-      const order = await Order.create({
-        productId, productName: product.name, quantity, customerName, userEmail,
-        status: 'pending_payment', createdAt: new Date()
-      });
-      await publishOrderCreated(order);
-      res.status(201).json(order);
-    } catch (error) {
-      res.status(502).json({ error: `Order could not be created: ${error.message}` });
-    }
-  });
+  try {
+    const inventoryResponse = await fetch('http://inventory-service:4001/products');
+    const products = await inventoryResponse.json();
+    if (!inventoryResponse.ok) throw new Error(products.error || 'Inventory request failed');
 
-  router.post('/:id/pay', async (req, res) => {
-    try {
-      const order = await Order.findById(req.params.id);
-      if (!order) return res.status(404).json({ error: 'Order not found' });
-      if (order.status === 'paid') return res.status(400).json({ error: 'Order is already paid' });
+    const product = products.find((item) => item._id === productId);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
 
-      const payment = await serviceJson(`${paymentUrl}/charge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: order._id.toString(),
-          amount: order.quantity,
-          userEmail: order.userEmail,
-          customerName: order.customerName,
-          productName: order.productName,
-          quantity: order.quantity
-        })
-      });
-      if (!payment.success) return res.status(502).json({ error: 'Payment failed' });
+    const stock = await reduceStock(productId, quantity);
+    if (!stock.success) return res.status(400).json({ error: 'Not enough stock available' });
 
-      order.status = 'paid';
-      await order.save();
-      res.json({ success: true, transactionId: payment.transactionId, order });
-    } catch (error) {
-      res.status(502).json({ error: `Payment could not be completed: ${error.message}` });
-    }
-  });
+    const order = await Order.create({
+      productId,
+      productName: product.name,
+      quantity,
+      customerName,
+      userEmail,
+      status: 'pending_payment',
+      createdAt: new Date()
+    });
 
-  router.get('/', async (_req, res) => {
-    try {
-      res.json(await Order.find().sort({ createdAt: -1 }));
-    } catch (error) {
-      res.status(500).json({ error: 'Could not fetch orders' });
-    }
-  });
+    await publishOrderCreated(order);
+    return res.status(201).json(order);
+  } catch (error) {
+    return res.status(502).json({ error: `Order could not be created: ${error.message}` });
+  }
+});
 
-  router.delete('/:id', async (req, res) => {
-    try {
-      const order = await Order.findByIdAndDelete(req.params.id);
-      if (!order) return res.status(404).json({ error: 'Order not found' });
-      res.json({ success: true, order });
-    } catch (error) {
-      res.status(400).json({ error: 'Could not delete order' });
-    }
-  });
+router.post('/:id/pay', async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status === 'paid') return res.status(400).json({ error: 'Order is already paid' });
 
-  return router;
-}
+    const paymentResponse = await fetch('http://payment-service:4002/charge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: order._id.toString(),
+        amount: order.quantity,
+        userEmail: order.userEmail,
+        customerName: order.customerName,
+        productName: order.productName,
+        quantity: order.quantity
+      })
+    });
+    const payment = await paymentResponse.json();
+    if (!paymentResponse.ok) throw new Error(payment.error || 'Payment request failed');
+    if (!payment.success) return res.status(502).json({ error: 'Payment failed' });
 
-module.exports = createOrderRoutes;
+    order.status = 'paid';
+    await order.save();
+    return res.json({ success: true, transactionId: payment.transactionId, order });
+  } catch (error) {
+    return res.status(502).json({ error: `Payment could not be completed: ${error.message}` });
+  }
+});
+
+router.get('/', async (_req, res) => {
+  try {
+    return res.json(await Order.find().sort({ createdAt: -1 }));
+  } catch (_error) {
+    return res.status(500).json({ error: 'Could not fetch orders' });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    return res.json({ success: true, order });
+  } catch (_error) {
+    return res.status(400).json({ error: 'Could not delete order' });
+  }
+});
+
+module.exports = router;

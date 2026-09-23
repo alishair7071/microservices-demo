@@ -183,6 +183,26 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
+            <h2>Circuit Breaker Lab</h2>
+            <p class="subtle">One protected request to a separate demo service. Stop that service to create connection failures, or select a slow response to test the timeout.</p>
+          </div>
+          <span class="mono">Opossum / demo</span>
+        </div>
+        <div class="gateway-actions">
+          <label>Response mode
+            <select id="circuit-response-mode">
+              <option value="0">Normal response</option>
+              <option value="5000">Slow response (5 seconds)</option>
+            </select>
+          </label>
+          <button class="secondary" id="send-circuit-request" type="button">Send Protected Request</button>
+        </div>
+        <div id="circuit-breaker-result" class="collection" aria-live="polite"></div>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
             <h2>RabbitMQ Email Service A</h2>
             <p class="subtle">RabbitMQ consumer / shared queue.</p>
           </div>

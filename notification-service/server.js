@@ -11,15 +11,13 @@ app.use(express.json());
 
 const notifications = [];
 const kafkaNotifications = [];
-let consumerReady = false;
-const isReady = () => consumerReady;
-const setReady = (value) => { consumerReady = value; };
+const state = { ready: false };
 
-app.use(createNotificationRoutes(notifications, kafkaNotifications, isReady));
+app.use(createNotificationRoutes(notifications, kafkaNotifications, state));
 
 async function start() {
   app.listen(config.port, () => console.log(`Notification service listening on port ${config.port}`));
-  startNotificationConsumer(notifications, setReady);
+  startNotificationConsumer(notifications, state);
   startKafkaConsumer(kafkaNotifications);
 }
 

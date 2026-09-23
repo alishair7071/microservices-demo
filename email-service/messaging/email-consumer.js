@@ -1,7 +1,7 @@
 const amqp = require('amqplib');
 const config = require('../config');
 
-async function startEmailConsumer(sentEmails, setReady, instanceName) {
+async function startEmailConsumer(sentEmails, state, instanceName) {
   let connection;
 
   while (true) {
@@ -9,7 +9,7 @@ async function startEmailConsumer(sentEmails, setReady, instanceName) {
       connection = await amqp.connect(config.rabbitmqUrl);
       connection.on('error', (error) => console.error('RabbitMQ connection error:', error.message));
       connection.on('close', () => {
-        setReady(false);
+        state.ready = false;
         console.log('RabbitMQ connection closed, reconnecting...');
       });
 
@@ -39,7 +39,7 @@ async function startEmailConsumer(sentEmails, setReady, instanceName) {
         }
       }, { noAck: false });
 
-      setReady(true);
+      state.ready = true;
       return;
     } catch (error) {
       console.error('Could not connect to RabbitMQ, retrying in 5 seconds:', error.message);

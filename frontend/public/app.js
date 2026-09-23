@@ -1,21 +1,10 @@
-// URLs exposed by Docker Compose on your computer.
-const gatewayApi = 'http://localhost:8000/api';
-const orderApi = gatewayApi;
-const inventoryApi = gatewayApi;
-const emailServiceAApi = `${gatewayApi}/emails/a`;
-const emailServiceBApi = `${gatewayApi}/emails/b`;
-const kafkaEmailServiceAApi = `${gatewayApi}/kafka/emails/a`;
-const kafkaEmailServiceBApi = `${gatewayApi}/kafka/emails/b`;
-const notificationApi = gatewayApi;
-const loadBalancedEmailApi = `${gatewayApi}/load-balanced/email-health`;
-const rateLimitTestApi = `${gatewayApi}/rate-limit-test`;
-
 // HTML elements we update from JavaScript.
 const productsList = document.querySelector('#products');
 const productSelect = document.querySelector('#product-id');
 const ordersList = document.querySelector('#orders');
 const message = document.querySelector('#message');
 const gatewayTestResult = document.querySelector('#gateway-test-result');
+const circuitBreakerResult = document.querySelector('#circuit-breaker-result');
 
 function escapeHtml(value) {
   return String(value)
@@ -63,9 +52,33 @@ function showGatewayTestResult(title, detail, isError = false) {
   `;
 }
 
+function showCircuitBreakerResult(data, isError = false) {
+  const breaker = data.breaker || {};
+  const title = data.result?.message || data.message || 'Circuit breaker status';
+  circuitBreakerResult.innerHTML = `
+    <div class="gateway-result ${isError ? 'error' : ''}">
+      <strong>${escapeHtml(title)}</strong>
+      <span>State: ${escapeHtml(breaker.state || 'unknown')} · Last event: ${escapeHtml(breaker.lastEvent || 'unknown')}</span>
+      <span>Requests: ${displayValue(breaker.totalRequests)} · Successes: ${displayValue(breaker.successfulRequests)} · Failures: ${displayValue(breaker.failedRequests)} · Rejected: ${displayValue(breaker.rejectedRequests)}</span>
+      <span>Timeout: ${displayValue(breaker.timeoutMs)}ms · Recovery test after: ${displayValue(breaker.resetAfterMs)}ms</span>
+    </div>
+  `;
+}
+
+async function runCircuitBreakerDemo() {
+  const delayMs = document.querySelector('#circuit-response-mode').value;
+  try {
+    const response = await fetch(`http://localhost:8000/api/circuit-breaker-demo?delayMs=${encodeURIComponent(delayMs)}`);
+    const data = await response.json();
+    showCircuitBreakerResult(data, !response.ok);
+  } catch (error) {
+    showCircuitBreakerResult({ message: `Request could not be sent: ${error.message}` }, true);
+  }
+}
+
 async function testLoadBalancing() {
   try {
-    const response = await fetch(loadBalancedEmailApi);
+    const response = await fetch('http://localhost:8000/api/load-balanced/email-health');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Gateway request failed');
 
@@ -80,7 +93,7 @@ async function testLoadBalancing() {
 
 async function testRateLimit() {
   try {
-    const response = await fetch(rateLimitTestApi);
+    const response = await fetch('http://localhost:8000/api/rate-limit-test');
     const data = await response.json();
     const limit = response.headers.get('X-RateLimit-Limit-Minute') || '5';
     const remaining = response.headers.get('X-RateLimit-Remaining-Minute');
@@ -103,23 +116,10 @@ async function testRateLimit() {
   }
 }
 
-// Send a request to order-service and turn its JSON response into JavaScript data.
-// Orders and payments use this service because it coordinates those operations.
-async function orderRequest(path, options) {
-  const response = await fetch(orderApi + path, options);
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
-  }
-
-  return data;
-}
-
-// Fetch products directly from inventory-service.
-// The product list is displayed and also used to fill the order dropdown.
+// Kong forwards this request to Inventory Service.
+// The product list also fills the order dropdown.
 async function loadProducts() {
-  const response = await fetch(`${inventoryApi}/products`);
+  const response = await fetch('http://localhost:8000/api/products');
   const products = await response.json();
 
   if (!response.ok) {
@@ -142,8 +142,7 @@ async function loadProducts() {
     .map((product) => `<option value="${escapeHtml(product._id)}" ${product.stock === 0 ? 'disabled' : ''}>${escapeHtml(product.name)} (${product.stock} available)</option>`).join('');
 }
 
-// Fetch all sent emails from email-service and render them.
-// We fetch from the Docker host because the frontend runs in its own container.
+// Render the emails returned by the Email Service through Kong.
 function renderEmails(emails, instanceName) {
   return emails.length
     ? emails.slice().reverse().map((email) => `
@@ -214,8 +213,8 @@ async function loadEmailInstance(api, elementId, instanceName) {
 async function loadEmails() {
   try {
     const [emailCountA, emailCountB] = await Promise.all([
-      loadEmailInstance(emailServiceAApi, 'emails-a', 'email-service-A'),
-      loadEmailInstance(emailServiceBApi, 'emails-b', 'email-service-B')
+      loadEmailInstance('http://localhost:8000/api/emails/a', 'emails-a', 'email-service-A'),
+      loadEmailInstance('http://localhost:8000/api/emails/b', 'emails-b', 'email-service-B')
     ]);
 
     currentEmailCount = emailCountA + emailCountB;
@@ -228,8 +227,8 @@ async function loadEmails() {
 async function loadKafkaEmails() {
   try {
     const [responseA, responseB] = await Promise.all([
-      fetch(kafkaEmailServiceAApi),
-      fetch(kafkaEmailServiceBApi)
+      fetch('http://localhost:8000/api/kafka/emails/a'),
+      fetch('http://localhost:8000/api/kafka/emails/b')
     ]);
     const [dataA, dataB] = await Promise.all([responseA.json(), responseB.json()]);
     if (!responseA.ok || !responseB.ok) throw new Error('Could not fetch Kafka email events');
@@ -246,7 +245,7 @@ async function loadKafkaEmails() {
 // Fetch all notifications from notification-service and render them.
 async function loadNotifications() {
   try {
-    const response = await fetch(`${notificationApi}/notifications`);
+    const response = await fetch('http://localhost:8000/api/notifications');
     const notifications = await response.json();
 
     currentNotificationCount = notifications.length;
@@ -268,7 +267,7 @@ async function loadNotifications() {
 
 async function loadKafkaNotifications() {
   try {
-    const response = await fetch(`${notificationApi}/kafka/notifications`);
+    const response = await fetch('http://localhost:8000/api/kafka/notifications');
     const data = await response.json();
     if (!response.ok) throw new Error('Could not fetch Kafka notifications');
 
@@ -288,7 +287,9 @@ let currentKafkaNotificationCount = 0;
 // Fetch all saved orders from order-service and render them.
 // A Pay button is shown only while an order is waiting for payment.
 async function loadOrders() {
-  const orders = await orderRequest('/orders');
+  const response = await fetch('http://localhost:8000/api/orders');
+  const orders = await response.json();
+  if (!response.ok) throw new Error(orders.error || 'Could not fetch orders');
 
   updateMetric('order-count', orders.length);
   ordersList.innerHTML = orders.length ? orders.map((order) => {
@@ -300,7 +301,7 @@ async function loadOrders() {
     }).join('') : emptyState('No orders yet. Create one to start the flow.');
 }
 
-// Add a product directly to inventory-service.
+// Add a product through Kong's Inventory route.
 document.querySelector('#product-form').addEventListener('submit', async (event) => {
   event.preventDefault(); // Keep the page from reloading.
 
@@ -311,7 +312,7 @@ document.querySelector('#product-form').addEventListener('submit', async (event)
   };
 
   try {
-    const response = await fetch(`${inventoryApi}/products`, {
+    const response = await fetch('http://localhost:8000/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newProduct)
@@ -335,7 +336,7 @@ productsList.addEventListener('click', async (event) => {
   if (!productId || !window.confirm('Delete this product?')) return;
 
   try {
-    const response = await fetch(`${inventoryApi}/products/${productId}`, { method: 'DELETE' });
+    const response = await fetch(`http://localhost:8000/api/products/${productId}`, { method: 'DELETE' });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not delete product');
     showMessage('Product deleted.');
@@ -358,11 +359,13 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
   };
 
   try {
-    const order = await orderRequest('/orders', {
+    const response = await fetch('http://localhost:8000/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newOrder)
     });
+    const order = await response.json();
+    if (!response.ok) throw new Error(order.error || 'Could not create order');
 
     event.target.reset();
     showMessage(`Order ${order._id} created. Click Pay when ready.`);
@@ -382,7 +385,9 @@ ordersList.addEventListener('click', async (event) => {
     if (!window.confirm('Delete this order?')) return;
 
     try {
-      const result = await orderRequest(`/orders/${deleteOrderId}`, { method: 'DELETE' });
+      const response = await fetch(`http://localhost:8000/api/orders/${deleteOrderId}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not delete order');
       showMessage(result.success ? 'Order deleted.' : 'Could not delete order.', !result.success);
       await loadOrders();
     } catch (error) {
@@ -395,9 +400,11 @@ ordersList.addEventListener('click', async (event) => {
   if (!orderId) return;
 
   try {
-    const result = await orderRequest(`/orders/${orderId}/pay`, {
+    const response = await fetch(`http://localhost:8000/api/orders/${orderId}/pay`, {
       method: 'POST'
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not pay for order');
 
     showMessage(`Payment successful. Transaction: ${result.transactionId}`);
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -411,6 +418,7 @@ ordersList.addEventListener('click', async (event) => {
 document.querySelector('#refresh-orders').addEventListener('click', loadOrders);
 document.querySelector('#test-load-balancing').addEventListener('click', testLoadBalancing);
 document.querySelector('#test-rate-limit').addEventListener('click', testRateLimit);
+document.querySelector('#send-circuit-request').addEventListener('click', runCircuitBreakerDemo);
 
 Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
   .catch((error) => showMessage(error.message, true));

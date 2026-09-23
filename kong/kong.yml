@@ -18,6 +18,14 @@ services:
           - /api/orders
         strip_path: true
 
+  - name: circuit-breaker-demo
+    url: http://order-service:4000/resilience/circuit-breaker-demo
+    routes:
+      - name: circuit-breaker-demo
+        paths:
+          - /api/circuit-breaker-demo
+        strip_path: true
+
   - name: email-service-a
     url: http://email-service-a:4003/emails
     routes:

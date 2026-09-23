@@ -1,6 +1,6 @@
 const express = require('express');
 
-function createEmailRoutes(sentEmails, kafkaEmails, isReady, instanceName) {
+function createEmailRoutes(sentEmails, kafkaEmails, state, instanceName) {
   const router = express.Router();
 
   router.get('/emails', (_req, res) => {
@@ -12,8 +12,8 @@ function createEmailRoutes(sentEmails, kafkaEmails, isReady, instanceName) {
   });
 
   router.get('/health', (_req, res) => {
-    res.status(isReady() ? 200 : 503).json({
-      status: isReady() ? 'ok' : 'starting',
+    res.status(state.ready ? 200 : 503).json({
+      status: state.ready ? 'ok' : 'starting',
       service: 'email-service',
       instance: instanceName
     });

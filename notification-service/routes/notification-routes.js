@@ -1,6 +1,6 @@
 const express = require('express');
 
-function createNotificationRoutes(notifications, kafkaNotifications, isReady) {
+function createNotificationRoutes(notifications, kafkaNotifications, state) {
   const router = express.Router();
 
   router.get('/notifications', (_req, res) => {
@@ -12,8 +12,8 @@ function createNotificationRoutes(notifications, kafkaNotifications, isReady) {
   });
 
   router.get('/health', (_req, res) => {
-    res.status(isReady() ? 200 : 503).json({
-      status: isReady() ? 'ok' : 'starting',
+    res.status(state.ready ? 200 : 503).json({
+      status: state.ready ? 'ok' : 'starting',
       service: 'notification-service'
     });
   });

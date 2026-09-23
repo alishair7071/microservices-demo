@@ -12,15 +12,13 @@ app.use(express.json());
 const sentEmails = [];
 const kafkaEmails = [];
 const instanceName = process.env.EMAIL_SERVICE_NAME || 'email-service';
-let consumerReady = false;
-const isReady = () => consumerReady;
-const setReady = (value) => { consumerReady = value; };
+const state = { ready: false };
 
-app.use(createEmailRoutes(sentEmails, kafkaEmails, isReady, instanceName));
+app.use(createEmailRoutes(sentEmails, kafkaEmails, state, instanceName));
 
 async function start() {
   app.listen(config.port, () => console.log(`Email service listening on port ${config.port}`));
-  startEmailConsumer(sentEmails, setReady, instanceName);
+  startEmailConsumer(sentEmails, state, instanceName);
   startKafkaConsumer(kafkaEmails, instanceName);
 }
 
