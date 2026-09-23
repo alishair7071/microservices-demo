@@ -1,9 +1,12 @@
 // URLs exposed by Docker Compose on your computer.
-const orderApi = 'http://localhost:4000';
-const inventoryApi = 'http://localhost:4001';
-const emailServiceAApi = 'http://localhost:4003';
-const emailServiceBApi = 'http://localhost:4005';
-const notificationApi = 'http://localhost:4004';
+const gatewayApi = 'http://localhost:8000/api';
+const orderApi = gatewayApi;
+const inventoryApi = gatewayApi;
+const emailServiceAApi = `${gatewayApi}/emails/a`;
+const emailServiceBApi = `${gatewayApi}/emails/b`;
+const kafkaEmailServiceAApi = `${gatewayApi}/kafka/emails/a`;
+const kafkaEmailServiceBApi = `${gatewayApi}/kafka/emails/b`;
+const notificationApi = gatewayApi;
 
 // HTML elements we update from JavaScript.
 const productsList = document.querySelector('#products');
@@ -147,7 +150,7 @@ function renderKafkaNotifications(notifications) {
 }
 
 async function loadEmailInstance(api, elementId, instanceName) {
-  const response = await fetch(`${api}/emails`);
+  const response = await fetch(api);
   const emails = await response.json();
 
   if (!response.ok) throw new Error(emails.error || `Could not fetch ${instanceName} emails`);
@@ -173,8 +176,8 @@ async function loadEmails() {
 async function loadKafkaEmails() {
   try {
     const [responseA, responseB] = await Promise.all([
-      fetch(`${emailServiceAApi}/kafka/emails`),
-      fetch(`${emailServiceBApi}/kafka/emails`)
+      fetch(kafkaEmailServiceAApi),
+      fetch(kafkaEmailServiceBApi)
     ]);
     const [dataA, dataB] = await Promise.all([responseA.json(), responseB.json()]);
     if (!responseA.ok || !responseB.ok) throw new Error('Could not fetch Kafka email events');

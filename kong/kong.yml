@@ -1,0 +1,84 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: inventory-service
+    url: http://inventory-service:4001/products
+    routes:
+      - name: products
+        paths:
+          - /api/products
+        strip_path: true
+
+  - name: order-service
+    url: http://order-service:4000/orders
+    routes:
+      - name: orders
+        paths:
+          - /api/orders
+        strip_path: true
+
+  - name: email-service-a
+    url: http://email-service-a:4003/emails
+    routes:
+      - name: emails-a
+        paths:
+          - /api/emails/a
+        strip_path: true
+
+  - name: email-service-b
+    url: http://email-service-b:4003/emails
+    routes:
+      - name: emails-b
+        paths:
+          - /api/emails/b
+        strip_path: true
+
+  - name: kafka-email-service-a
+    url: http://email-service-a:4003/kafka/emails
+    routes:
+      - name: kafka-emails-a
+        paths:
+          - /api/kafka/emails/a
+        strip_path: true
+
+  - name: kafka-email-service-b
+    url: http://email-service-b:4003/kafka/emails
+    routes:
+      - name: kafka-emails-b
+        paths:
+          - /api/kafka/emails/b
+        strip_path: true
+
+  - name: notification-service
+    url: http://notification-service:4004/notifications
+    routes:
+      - name: notifications
+        paths:
+          - /api/notifications
+        strip_path: true
+
+  - name: kafka-notification-service
+    url: http://notification-service:4004/kafka/notifications
+    routes:
+      - name: kafka-notifications
+        paths:
+          - /api/kafka/notifications
+        strip_path: true
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:3000
+      methods:
+        - GET
+        - POST
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Content-Type
+      exposed_headers:
+        - Content-Length
+      max_age: 3600

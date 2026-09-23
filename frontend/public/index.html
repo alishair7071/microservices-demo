@@ -105,9 +105,9 @@
       <div>
         <p class="eyebrow">Microservices / operations</p>
         <h1>Commerce control room.</h1>
-        <p class="intro">A small working view of the system: inventory enters through REST, orders coordinate the services, and events travel through RabbitMQ and Kafka.</p>
+        <p class="intro">A small working view of the system: requests enter through Kong Gateway, while events travel through RabbitMQ and Kafka.</p>
       </div>
-      <div class="broker-pill"><span class="pulse"></span><span class="mono">brokers connected</span></div>
+      <div class="broker-pill"><span class="pulse"></span><span class="mono">gateway / brokers</span></div>
     </header>
 
     <section class="metrics" aria-label="System summary">
@@ -188,7 +188,7 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
-            <h2>Notifications</h2>
+            <h2>RabbitMQ Notifications</h2>
             <p class="subtle">Messages handled by the notification service.</p>
           </div>
           <span class="mono">consumer / notification</span>

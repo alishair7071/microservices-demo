@@ -1,0 +1,56 @@
+MICROSERVICES LEARNING PROGRESS REPORT
+
+Theory Completed:
+
+Practical Topics Completed:
+- Basic microservices architecture
+- Service separation and responsibilities
+- REST communication
+- gRPC communication
+- RabbitMQ messaging
+- Kafka messaging
+- Kafka topics, partitions, producers, consumers, and consumer groups
+- Event-driven architecture
+- Separate databases for services (basic level)
+- Dockerfiles and Docker Compose
+- MongoDB, RabbitMQ, and Kafka containers
+- Docker health checks
+- Basic retry handling for messaging services
+
+Topics Partially Covered:
+- Service boundaries and Domain-Driven Design
+- Database-per-service principle
+- Service discovery through Docker service names
+- Resilience and fault tolerance
+- Logging and health checks
+- Deployment and infrastructure
+
+Topics Still To Implement Practically:
+- API Gateway / Backend for Frontend
+- Service registry and advanced service discovery
+- Request timeouts
+- Exponential retry with jitter
+- Circuit breaker
+- Fallback responses and graceful degradation
+- Rate limiting
+- Saga pattern and compensation actions
+- CQRS and event sourcing
+- OpenTelemetry and Jaeger distributed tracing
+- Correlation IDs and structured logging
+- Metrics, alerts, SLOs, and centralized logging
+- CI/CD pipeline
+- Environment-based configuration and secrets
+- Kubernetes deployment
+- ConfigMaps, Secrets, Services, Deployments, and HPA
+- Blue-green and canary deployments
+- Infrastructure as Code
+
+Next Practical Step:
+- Implement an API Gateway / BFF.
+- The frontend will call one gateway instead of calling multiple services directly.
+- The gateway will route requests to the correct services.
+
+After API Gateway:
+- Add resilience patterns.
+- Add OpenTelemetry and Jaeger tracing.
+- Then move toward CI/CD and Kubernetes.

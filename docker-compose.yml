@@ -151,12 +151,37 @@ services:
       timeout: 5s
       retries: 12
 
+  kong:
+    image: kong/kong-gateway:3.10.0.2
+    ports:
+      - "8000:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    volumes:
+      - ./kong/kong.yml:/kong/declarative/kong.yml:ro
+    depends_on:
+      inventory-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      email-service-a:
+        condition: service_healthy
+      email-service-b:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
     depends_on:
-      order-service:
+      kong:
         condition: service_started
 
 volumes:
