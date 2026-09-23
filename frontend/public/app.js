@@ -7,12 +7,15 @@ const emailServiceBApi = `${gatewayApi}/emails/b`;
 const kafkaEmailServiceAApi = `${gatewayApi}/kafka/emails/a`;
 const kafkaEmailServiceBApi = `${gatewayApi}/kafka/emails/b`;
 const notificationApi = gatewayApi;
+const loadBalancedEmailApi = `${gatewayApi}/load-balanced/email-health`;
+const rateLimitTestApi = `${gatewayApi}/rate-limit-test`;
 
 // HTML elements we update from JavaScript.
 const productsList = document.querySelector('#products');
 const productSelect = document.querySelector('#product-id');
 const ordersList = document.querySelector('#orders');
 const message = document.querySelector('#message');
+const gatewayTestResult = document.querySelector('#gateway-test-result');
 
 function escapeHtml(value) {
   return String(value)
@@ -49,6 +52,55 @@ function formatTimestamp(timestamp) {
 function showMessage(text, isError = false) {
   message.textContent = text;
   message.className = isError ? 'message error' : 'message';
+}
+
+function showGatewayTestResult(title, detail, isError = false) {
+  gatewayTestResult.innerHTML = `
+    <div class="gateway-result ${isError ? 'error' : ''}">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(detail)}</span>
+    </div>
+  `;
+}
+
+async function testLoadBalancing() {
+  try {
+    const response = await fetch(loadBalancedEmailApi);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Gateway request failed');
+
+    showGatewayTestResult(
+      'Load-balanced request accepted',
+      `Kong selected ${data.instance || 'an Email Service instance'}. Click again to observe round-robin routing.`
+    );
+  } catch (error) {
+    showGatewayTestResult('Load-balancing request failed', error.message, true);
+  }
+}
+
+async function testRateLimit() {
+  try {
+    const response = await fetch(rateLimitTestApi);
+    const data = await response.json();
+    const limit = response.headers.get('X-RateLimit-Limit-Minute') || '5';
+    const remaining = response.headers.get('X-RateLimit-Remaining-Minute');
+
+    if (!response.ok) {
+      showGatewayTestResult(
+        `Rate limit blocked the request (${response.status})`,
+        `Kong allows ${limit} requests per minute on this test route. Wait one minute and try again.`,
+        true
+      );
+      return;
+    }
+
+    showGatewayTestResult(
+      'Rate-limited request accepted',
+      `Kong allowed this request. Remaining this minute: ${remaining ?? 'unknown'} of ${limit}.`
+    );
+  } catch (error) {
+    showGatewayTestResult('Rate-limit request failed', error.message, true);
+  }
 }
 
 // Send a request to order-service and turn its JSON response into JavaScript data.
@@ -357,6 +409,8 @@ ordersList.addEventListener('click', async (event) => {
 
 // Refresh button and initial page load.
 document.querySelector('#refresh-orders').addEventListener('click', loadOrders);
+document.querySelector('#test-load-balancing').addEventListener('click', testLoadBalancing);
+document.querySelector('#test-rate-limit').addEventListener('click', testRateLimit);
 
 Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
   .catch((error) => showMessage(error.message, true));

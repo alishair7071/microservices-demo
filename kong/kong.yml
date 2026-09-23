@@ -66,6 +66,43 @@ services:
           - /api/kafka/notifications
         strip_path: true
 
+  # This service uses the upstream below instead of one fixed Email Service.
+  - name: load-balanced-email-health
+    host: email-service-upstream
+    port: 4003
+    protocol: http
+    path: /health
+    routes:
+      - name: load-balanced-email-health
+        paths:
+          - /api/load-balanced/email-health
+        strip_path: true
+
+  # A dedicated route keeps the learning rate limit separate from normal APIs.
+  - name: rate-limit-demo
+    url: http://inventory-service:4001/products
+    routes:
+      - name: rate-limit-demo
+        paths:
+          - /api/rate-limit-test
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 5
+          policy: local
+          limit_by: ip
+          hide_client_headers: false
+
+upstreams:
+  - name: email-service-upstream
+    algorithm: round-robin
+    targets:
+      - target: email-service-a:4003
+        weight: 100
+      - target: email-service-b:4003
+        weight: 100
+
 plugins:
   - name: cors
     config:
