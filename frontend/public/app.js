@@ -6,6 +6,7 @@ const message = document.querySelector('#message');
 const gatewayTestResult = document.querySelector('#gateway-test-result');
 const circuitBreakerResult = document.querySelector('#circuit-breaker-result');
 const retryDemoResult = document.querySelector('#retry-demo-result');
+const bulkheadDemoResult = document.querySelector('#bulkhead-demo-result');
 
 function escapeHtml(value) {
   return String(value)
@@ -98,6 +99,37 @@ async function runRetryDemo() {
   } finally {
     button.disabled = false;
   }
+}
+
+async function runBulkheadDemo() {
+  const button = document.querySelector('#send-bulkhead-requests');
+  const results = Array(5).fill(null);
+  button.disabled = true;
+  bulkheadDemoResult.innerHTML = '<div class="gateway-result">Sending five requests at the same time...</div>';
+
+  await Promise.all(results.map(async (_result, index) => {
+    try {
+      const requestId = `${Date.now()}-${index + 1}`;
+      const response = await fetch(`http://localhost:8000/api/bulkhead-demo?request=${requestId}`, { cache: 'no-store' });
+      const data = await response.json();
+      results[index] = {
+        success: response.ok,
+        message: data.message || (response.ok ? 'Target responded.' : 'Request was rejected.'),
+        status: response.status
+      };
+    } catch (error) {
+      results[index] = { success: false, message: error.message, status: 'NETWORK_ERROR' };
+    }
+
+    bulkheadDemoResult.innerHTML = results.map((result, resultIndex) => `
+      <div class="gateway-result ${result && !result.success ? 'error' : ''}">
+        <strong>Request ${resultIndex + 1}: ${result ? escapeHtml(result.status) : 'waiting'}</strong>
+        <span>${result ? escapeHtml(result.message) : 'Waiting for a response...'}</span>
+      </div>
+    `).join('');
+  }));
+
+  button.disabled = false;
 }
 
 async function testLoadBalancing() {
@@ -444,6 +476,7 @@ document.querySelector('#test-load-balancing').addEventListener('click', testLoa
 document.querySelector('#test-rate-limit').addEventListener('click', testRateLimit);
 document.querySelector('#send-circuit-request').addEventListener('click', runCircuitBreakerDemo);
 document.querySelector('#send-retry-request').addEventListener('click', runRetryDemo);
+document.querySelector('#send-bulkhead-requests').addEventListener('click', runBulkheadDemo);
 
 Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
   .catch((error) => showMessage(error.message, true));

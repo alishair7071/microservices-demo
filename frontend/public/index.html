@@ -217,6 +217,20 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
+            <h2>Bulkhead Lab</h2>
+            <p class="subtle">Send five requests at once. The Resilience Lab Service allows only two in flight; the others are rejected immediately. Allowed requests take five seconds.</p>
+          </div>
+          <span class="mono">2 concurrent</span>
+        </div>
+        <div class="gateway-actions">
+          <button class="secondary" id="send-bulkhead-requests" type="button">Send 5 Concurrent Requests</button>
+        </div>
+        <div id="bulkhead-demo-result" class="collection" aria-live="polite"></div>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
             <h2>RabbitMQ Email Service A</h2>
             <p class="subtle">RabbitMQ consumer / shared queue.</p>
           </div>

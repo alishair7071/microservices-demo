@@ -34,6 +34,14 @@ services:
           - /api/retry-demo
         strip_path: true
 
+  - name: bulkhead-demo
+    url: http://resilience-lab-service:4020/bulkhead
+    routes:
+      - name: bulkhead-demo
+        paths:
+          - /api/bulkhead-demo
+        strip_path: true
+
   - name: email-service-a
     url: http://email-service-a:4003/emails
     routes:
