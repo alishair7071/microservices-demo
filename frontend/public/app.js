@@ -7,6 +7,11 @@ const gatewayTestResult = document.querySelector('#gateway-test-result');
 const circuitBreakerResult = document.querySelector('#circuit-breaker-result');
 const retryDemoResult = document.querySelector('#retry-demo-result');
 const bulkheadDemoResult = document.querySelector('#bulkhead-demo-result');
+const eventAccountSelect = document.querySelector('#event-account-select');
+const eventAccountAmount = document.querySelector('#event-account-amount');
+const eventAccountMessage = document.querySelector('#event-account-message');
+const eventAccountSummary = document.querySelector('#event-account-summary');
+const eventAccountHistory = document.querySelector('#event-account-history');
 
 function escapeHtml(value) {
   return String(value)
@@ -130,6 +135,113 @@ async function runBulkheadDemo() {
   }));
 
   button.disabled = false;
+}
+
+function formatAccountMoney(amountCents) {
+  return `USD ${(amountCents / 100).toFixed(2)}`;
+}
+
+async function loadEventSourcingAccount() {
+  const accountId = eventAccountSelect.value;
+  if (!accountId) {
+    eventAccountSummary.innerHTML = emptyState('Open a demo account to begin.');
+    eventAccountHistory.innerHTML = '';
+    return;
+  }
+
+  try {
+    const [accountResponse, eventsResponse] = await Promise.all([
+      fetch(`http://localhost:8000/api/accounts/${accountId}`),
+      fetch(`http://localhost:8000/api/accounts/${accountId}/events`)
+    ]);
+    const accountData = await accountResponse.json();
+    const eventsData = await eventsResponse.json();
+    if (!accountResponse.ok) throw new Error(accountData.error || 'Could not load account');
+    if (!eventsResponse.ok) throw new Error(eventsData.error || 'Could not load account history');
+
+    const account = accountData.account;
+    eventAccountSummary.innerHTML = `
+      <div class="gateway-result">
+        <strong>Current balance: ${escapeHtml(formatAccountMoney(account.balanceCents))}</strong>
+        <span>Rebuilt from ${escapeHtml(account.version)} event(s) · Account ${escapeHtml(account.accountId)}</span>
+      </div>
+    `;
+    eventAccountHistory.innerHTML = eventsData.events.map((event) => `
+      <div class="gateway-result">
+        <strong>#${escapeHtml(event.sequence)} · ${escapeHtml(event.type)}</strong>
+        <span>${escapeHtml(event.type === 'AccountOpened' ? 'Account opened' : formatAccountMoney(event.amountCents))} · ${escapeHtml(formatTimestamp(event.occurredAt))}</span>
+      </div>
+    `).join('');
+  } catch (error) {
+    eventAccountSummary.innerHTML = `<div class="gateway-result error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function loadEventSourcingAccounts(preferredAccountId = '') {
+  try {
+    const response = await fetch('http://localhost:8000/api/accounts');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not load accounts');
+
+    const oldAccountId = eventAccountSelect.value;
+    eventAccountSelect.innerHTML = data.accounts.map((account) => `
+      <option value="${escapeHtml(account.accountId)}">${escapeHtml(account.accountId.slice(0, 8))} · ${escapeHtml(formatAccountMoney(account.balanceCents))}</option>
+    `).join('');
+    eventAccountSelect.value = preferredAccountId || oldAccountId;
+    if (!eventAccountSelect.value && data.accounts.length > 0) {
+      eventAccountSelect.value = data.accounts[0].accountId;
+    }
+    await loadEventSourcingAccount();
+  } catch (error) {
+    eventAccountSummary.innerHTML = `<div class="gateway-result error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function openEventSourcingAccount() {
+  try {
+    const response = await fetch('http://localhost:8000/api/accounts', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not open account');
+    await loadEventSourcingAccounts(data.account.accountId);
+    eventAccountMessage.textContent = 'Demo account opened; AccountOpened was appended to the event history.';
+    eventAccountMessage.className = 'message';
+  } catch (error) {
+    eventAccountMessage.textContent = error.message;
+    eventAccountMessage.className = 'message error';
+  }
+}
+
+async function changeEventSourcingBalance(operation) {
+  const accountId = eventAccountSelect.value;
+  const amount = Number(eventAccountAmount.value);
+  const amountCents = Math.round(amount * 100);
+  if (!accountId) {
+    eventAccountMessage.textContent = 'Open or select an account first.';
+    eventAccountMessage.className = 'message error';
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(amountCents)) {
+    eventAccountMessage.textContent = 'Enter a valid amount greater than zero.';
+    eventAccountMessage.className = 'message error';
+    return;
+  }
+
+  try {
+    const response = await fetch(`http://localhost:8000/api/accounts/${accountId}/${operation}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amountCents })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Could not ${operation} money`);
+    await loadEventSourcingAccounts(accountId);
+    eventAccountAmount.value = '';
+    eventAccountMessage.textContent = `${data.event.type} appended. Current balance: ${formatAccountMoney(data.account.balanceCents)}.`;
+    eventAccountMessage.className = 'message';
+  } catch (error) {
+    eventAccountMessage.textContent = error.message;
+    eventAccountMessage.className = 'message error';
+  }
 }
 
 async function testLoadBalancing() {
@@ -481,6 +593,10 @@ document.querySelector('#test-rate-limit').addEventListener('click', testRateLim
 document.querySelector('#send-circuit-request').addEventListener('click', runCircuitBreakerDemo);
 document.querySelector('#send-retry-request').addEventListener('click', runRetryDemo);
 document.querySelector('#send-bulkhead-requests').addEventListener('click', runBulkheadDemo);
+document.querySelector('#open-demo-account').addEventListener('click', openEventSourcingAccount);
+document.querySelector('#event-account-select').addEventListener('change', loadEventSourcingAccount);
+document.querySelector('#deposit-account-money').addEventListener('click', () => changeEventSourcingBalance('deposit'));
+document.querySelector('#withdraw-account-money').addEventListener('click', () => changeEventSourcingBalance('withdraw'));
 
-Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications()])
+Promise.all([loadProducts(), loadOrders(), loadEmails(), loadNotifications(), loadKafkaEmails(), loadKafkaNotifications(), loadEventSourcingAccounts()])
   .catch((error) => showMessage(error.message, true));

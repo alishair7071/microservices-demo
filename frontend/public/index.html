@@ -167,6 +167,29 @@
         <div id="orders" class="collection" aria-live="polite"></div>
       </section>
 
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Event Sourcing Lab</h2>
+            <p class="subtle">Balances are rebuilt from the account's immutable event history. Demo amounts are stored as cents.</p>
+          </div>
+          <span class="mono">Account events</span>
+        </div>
+        <div class="gateway-actions">
+          <button class="secondary" id="open-demo-account" type="button">Open Demo Account</button>
+        </div>
+        <label>Account<select id="event-account-select"></select></label>
+        <label>Amount (USD)<input id="event-account-amount" type="number" min="0.01" step="0.01" placeholder="10.00"></label>
+        <div class="gateway-actions">
+          <button class="secondary" id="deposit-account-money" type="button">Deposit</button>
+          <button class="secondary" id="withdraw-account-money" type="button">Withdraw</button>
+        </div>
+        <p id="event-account-message" class="message" role="status"></p>
+        <div id="event-account-summary" class="collection" aria-live="polite"></div>
+        <h3>Event history</h3>
+        <div id="event-account-history" class="collection" aria-live="polite"></div>
+      </section>
+
       <!-- Row 2, Col 1: RabbitMQ Email service A -->
       <section class="panel event-panel">
         <div class="panel-heading">

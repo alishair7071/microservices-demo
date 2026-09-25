@@ -19,6 +19,7 @@ Open the frontend at `http://localhost:3000`. Browser requests go through Kong a
 | Notification | Consumes RabbitMQ and Kafka messages. |
 | Resilience Lab | Runs the circuit breaker, timeout, retry, and bulkhead examples. |
 | Resilience Target | Provides simple responses for the labs to call. |
+| Account | Demonstrates event sourcing by rebuilding account balances from an immutable event history. |
 | Kong | Routes frontend requests to the services; also demonstrates load balancing and rate limiting. |
 
 The main order flow is:
@@ -43,6 +44,7 @@ Frontend -> Kong -> Order -> Payment -> MongoDB (save payment)
 - `resilience-lab-service/labs/bulkhead.js` limits how many lab requests can call the target at the same time.
 - `proto/inventory.proto` defines Inventory's stock reservation and restoration gRPC operations.
 - `resilience-target-service/server.js` returns the simulated normal, slow, or temporary failure responses.
+- `account-service/events/` stores and replays the account event history for the Event Sourcing Lab.
 - `kong/kong.yml` maps public `/api/...` paths to service paths.
 - `frontend/public/app.js` sends browser requests to Kong and renders the results.
 
@@ -63,6 +65,10 @@ Order creation reserves stock through Inventory, then saves the order in Order S
 ## Bulkhead lab
 
 Click **Send 5 Concurrent Requests**. The Resilience Lab Service permits two requests at a time to call the Resilience Target Service, which takes five seconds to respond. The other three requests are rejected immediately with HTTP 503. The limit is in `resilience-lab-service/labs/bulkhead.js`.
+
+## Event Sourcing lab
+
+Open a demo account, then deposit or withdraw money. Each accepted command appends an immutable event to the `account_events` collection in the `account_db` database. The displayed balance is rebuilt by replaying those events; the lab also shows the ordered event history. Amounts are stored as integer cents. This is simulated money and is separate from the Payment Service.
 
 ## Retry lab
 
