@@ -41,6 +41,7 @@ Frontend -> Kong -> Order -> Payment -> MongoDB (save payment)
 - `resilience-lab-service/labs/circuit-breaker.js` contains the Opossum breaker and its route.
 - `resilience-lab-service/labs/retry.js` contains the retry loop and its route.
 - `resilience-lab-service/labs/bulkhead.js` limits how many lab requests can call the target at the same time.
+- `proto/inventory.proto` defines Inventory's stock reservation and restoration gRPC operations.
 - `resilience-target-service/server.js` returns the simulated normal, slow, or temporary failure responses.
 - `kong/kong.yml` maps public `/api/...` paths to service paths.
 - `frontend/public/app.js` sends browser requests to Kong and renders the results.
@@ -54,6 +55,10 @@ The frontend has one **Send Protected Request** button. The request travels thro
 - **Unavailable service:** run `docker compose stop resilience-target-service`, then click the button repeatedly. After three failures, the circuit opens and rejects requests immediately. Run `docker compose start resilience-target-service`, wait 15 seconds, and click again to test recovery.
 
 The breaker lives in the Resilience Lab Service.
+
+## Saga lab
+
+Order creation reserves stock through Inventory, then saves the order in Order Service. Select **Simulate order-save failure after stock is reserved (Saga demo)** in the order form to fail between those steps. Order Service then calls Inventory to restore the stock. The order is not created, and the frontend refreshes the product stock. The Saga coordinator is `order-service/routes/order-routes.js`; the compensation is implemented by Inventory's `RestoreStock` gRPC operation. RabbitMQ publishing keeps its existing behavior and happens after the database steps succeed.
 
 ## Bulkhead lab
 

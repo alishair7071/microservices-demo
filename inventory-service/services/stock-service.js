@@ -19,6 +19,25 @@ async function reduceStock(productId, quantity) {
   }
 }
 
+async function restoreStock(productId, quantity) {
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return { success: false, remaining_stock: 0 };
+  }
+
+  try {
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { stock: quantity } },
+      { new: true }
+    );
+
+    if (!product) return { success: false, remaining_stock: 0 };
+    return { success: true, remaining_stock: product.stock };
+  } catch (error) {
+    return { success: false, remaining_stock: 0 };
+  }
+}
+
 async function seedProducts() {
   if (await Product.countDocuments() === 0) {
     await Product.insertMany([
@@ -30,4 +49,4 @@ async function seedProducts() {
   }
 }
 
-module.exports = { reduceStock, seedProducts };
+module.exports = { reduceStock, restoreStock, seedProducts };

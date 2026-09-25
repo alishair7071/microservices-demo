@@ -411,7 +411,8 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
     productId: productSelect.value,
     quantity: Number(form.get('quantity')),
     customerName: form.get('customerName'),
-    userEmail: form.get('userEmail')
+    userEmail: form.get('userEmail'),
+    simulateSagaFailure: form.get('simulateSagaFailure') === 'on'
   };
 
   try {
@@ -421,7 +422,10 @@ document.querySelector('#order-form').addEventListener('submit', async (event) =
       body: JSON.stringify(newOrder)
     });
     const order = await response.json();
-    if (!response.ok) throw new Error(order.error || 'Could not create order');
+    if (!response.ok) {
+      if (order.sagaCompensated) await loadProducts();
+      throw new Error(order.error || 'Could not create order');
+    }
 
     event.target.reset();
     showMessage(`Order ${order._id} created. Click Pay when ready.`);

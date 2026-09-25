@@ -2,7 +2,7 @@ const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
 const { grpcPort } = require('../config');
-const { reduceStock } = require('../services/stock-service');
+const { reduceStock, restoreStock } = require('../services/stock-service');
 
 const packageDefinition = protoLoader.loadSync(
   path.join(__dirname, '..', 'proto', 'inventory.proto'),
@@ -15,10 +15,16 @@ function reduceStockGrpc(call, callback) {
     .then((result) => callback(null, result));
 }
 
+function restoreStockGrpc(call, callback) {
+  restoreStock(call.request.product_id, call.request.quantity)
+    .then((result) => callback(null, result));
+}
+
 function startGrpcServer() {
   const grpcServer = new grpc.Server();
   grpcServer.addService(inventoryGrpc.InventoryService.service, {
-    ReduceStock: reduceStockGrpc
+    ReduceStock: reduceStockGrpc,
+    RestoreStock: restoreStockGrpc
   });
 
   grpcServer.bindAsync(

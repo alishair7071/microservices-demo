@@ -60,6 +60,8 @@
     form { display: grid; gap: 12px; margin-bottom: 20px; }
     .form-row { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
     label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    .check-label { display: flex; align-items: flex-start; gap: 8px; }
+    .check-label input { width: auto; margin: 2px 0 0; }
     input, select { width: 100%; padding: 12px 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 9px; outline: none; }
     input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(22, 125, 109, .12); }
     .primary, .secondary { border: 0; border-radius: 9px; padding: 12px 16px; font-weight: 600; transition: transform .18s ease, background .18s ease; }
@@ -158,6 +160,7 @@
             <label>Customer name<input name="customerName" placeholder="e.g. Ali" required></label>
           </div>
           <label>Customer email<input name="userEmail" type="email" placeholder="e.g. ali@example.com" required></label>
+          <label class="check-label"><input name="simulateSagaFailure" type="checkbox"> Simulate order-save failure after stock is reserved (Saga demo)</label>
           <button class="primary" type="submit">Place order</button>
           <p id="message" class="message" role="status"></p>
         </form>

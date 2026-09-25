@@ -4,6 +4,7 @@ package inventory;
 
 service InventoryService {
   rpc ReduceStock (ReduceStockRequest) returns (ReduceStockResponse);
+  rpc RestoreStock (RestoreStockRequest) returns (ReduceStockResponse);
 }
 
 message ReduceStockRequest {
@@ -14,4 +15,9 @@ message ReduceStockRequest {
 message ReduceStockResponse {
   bool success = 1;
   int32 remaining_stock = 2;
+}
+
+message RestoreStockRequest {
+  string product_id = 1;
+  int32 quantity = 2;
 }

@@ -22,4 +22,13 @@ function reduceStock(productId, quantity) {
   });
 }
 
-module.exports = { reduceStock };
+function restoreStock(productId, quantity) {
+  return new Promise((resolve, reject) => {
+    inventoryClient.RestoreStock(
+      { product_id: productId, quantity },
+      (error, response) => error ? reject(error) : resolve(response)
+    );
+  });
+}
+
+module.exports = { reduceStock, restoreStock };
