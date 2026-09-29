@@ -4,6 +4,7 @@ const config = require('./config');
 const createEmailRoutes = require('./routes/email-routes');
 const { startEmailConsumer } = require('./messaging/email-consumer');
 const { startKafkaConsumer } = require('./kafka/kafka-consumer');
+const { startService } = require('./consul-registration');
 
 const app = express();
 app.use(cors());
@@ -17,7 +18,8 @@ const state = { ready: false };
 app.use(createEmailRoutes(sentEmails, kafkaEmails, state, instanceName));
 
 async function start() {
-  app.listen(config.port, () => console.log(`Email service listening on port ${config.port}`));
+  await startService(app, process.env.CONSUL_SERVICE_NAME, config.port);
+  console.log(`Email service listening on port ${config.port}`);
   startEmailConsumer(sentEmails, state, instanceName);
   startKafkaConsumer(kafkaEmails, instanceName);
 }

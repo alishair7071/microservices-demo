@@ -1,4 +1,5 @@
 const http = require('http');
+const { startService } = require('./consul-registration');
 
 const port = 4010;
 
@@ -7,7 +8,7 @@ function sendJson(response, statusCode, body) {
   response.end(JSON.stringify(body));
 }
 
-http.createServer((request, response) => {
+const app = http.createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === '/health') {
@@ -50,4 +51,8 @@ http.createServer((request, response) => {
       respondedAt: new Date().toISOString()
     });
   }, delayMs);
-}).listen(port, () => console.log(`Resilience Target Service listening on port ${port}`));
+});
+
+startService(app, 'resilience-target-service', port)
+  .then(() => console.log(`Resilience Target Service listening on port ${port}`))
+  .catch((error) => { console.error(error); process.exit(1); });

@@ -1,4 +1,5 @@
 const express = require('express');
+const { startService } = require('./consul-registration');
 
 const app = express();
 
@@ -7,4 +8,6 @@ app.use('/circuit-breaker', require('./labs/circuit-breaker'));
 app.use('/retry', require('./labs/retry'));
 app.use('/bulkhead', require('./labs/bulkhead'));
 
-app.listen(4020, () => console.log('Resilience Lab Service listening on port 4020'));
+startService(app, 'resilience-lab-service', 4020)
+  .then(() => console.log('Resilience Lab Service listening on port 4020'))
+  .catch((error) => { console.error(error); process.exit(1); });

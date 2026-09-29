@@ -1,4 +1,21 @@
 services:
+  consul:
+    image: hashicorp/consul:1.21
+    command: agent -dev -client=0.0.0.0 -dns-port=8600 -ui
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    networks:
+      default: {}
+      registry-network:
+        ipv4_address: 172.29.250.2
+    healthcheck:
+      test: ["CMD", "consul", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   mongo:
     image: mongo:7
     command: ["mongod", "--quiet"]
@@ -63,16 +80,36 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      consul:
+        condition: service_healthy
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
 
   payment-service:
-    build: ./payment-service
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
     ports:
       - "4002:4002"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
     depends_on:
       mongo:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4002/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
 
   resilience-target-service:
     build:
@@ -80,6 +117,11 @@ services:
       dockerfile: resilience-target-service/Dockerfile
     expose:
       - "4010"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
+    depends_on:
+      consul:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4010/health"]
       interval: 5s
@@ -92,8 +134,12 @@ services:
       dockerfile: resilience-lab-service/Dockerfile
     expose:
       - "4020"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
     depends_on:
       resilience-target-service:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4020/health"]
@@ -107,26 +153,41 @@ services:
       dockerfile: order-service/Dockerfile
     ports:
       - "4000:4000"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
     depends_on:
       mongo:
         condition: service_healthy
       inventory-service:
-        condition: service_started
+        condition: service_healthy
       payment-service:
-        condition: service_started
+        condition: service_healthy
       email-service-a:
         condition: service_healthy
       email-service-b:
         condition: service_healthy
       notification-service:
         condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
 
   account-service:
-    build: ./account-service
+    build:
+      context: .
+      dockerfile: account-service/Dockerfile
     ports:
       - "4006:4006"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
     depends_on:
       mongo:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4006/health"]
@@ -143,10 +204,14 @@ services:
       - "4003:4003"
     environment:
       EMAIL_SERVICE_NAME: email-service-A
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_SERVICE_NAME: email-service-a
     depends_on:
       rabbitmq:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4003/health"]
@@ -163,10 +228,14 @@ services:
       - "4005:4003"
     environment:
       EMAIL_SERVICE_NAME: email-service-B
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_SERVICE_NAME: email-service-b
     depends_on:
       rabbitmq:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4003/health"]
@@ -180,10 +249,14 @@ services:
       dockerfile: notification-service/Dockerfile
     ports:
       - "4004:4004"
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
     depends_on:
       rabbitmq:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4004/health"]
@@ -198,18 +271,24 @@ services:
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_DNS_RESOLVER: 172.29.250.2:8600
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ERROR_LOG: /dev/stderr
     volumes:
       - ./kong/kong.yml:/kong/declarative/kong.yml:ro
+    networks:
+      default: {}
+      registry-network: {}
     depends_on:
       inventory-service:
-        condition: service_started
+        condition: service_healthy
       order-service:
-        condition: service_started
+        condition: service_healthy
       account-service:
+        condition: service_healthy
+      consul:
         condition: service_healthy
       resilience-lab-service:
         condition: service_healthy
@@ -230,3 +309,9 @@ services:
 
 volumes:
   mongo-data:
+
+networks:
+  registry-network:
+    ipam:
+      config:
+        - subnet: 172.29.250.0/24

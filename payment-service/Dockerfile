@@ -1,7 +1,8 @@
 FROM node:20-alpine
 WORKDIR /app
-COPY package*.json ./
+COPY payment-service/package*.json ./
 RUN npm install --omit=dev
-COPY . .
+COPY shared/consul-registration.js ./consul-registration.js
+COPY payment-service ./
 EXPOSE 4002
 CMD ["npm", "start"]

@@ -4,15 +4,18 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const paymentRoutes = require('./routes/payment-routes');
 const { connectKafka } = require('./kafka/kafka-producer');
+const { startService } = require('./consul-registration');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'payment-service' }));
 app.use(paymentRoutes);
 
 async function start() {
   await mongoose.connect(config.mongoUri);
-  app.listen(config.port, () => console.log(`Payment service listening on port ${config.port}`));
+  await startService(app, 'payment-service', config.port);
+  console.log(`Payment service listening on port ${config.port}`);
   connectKafka();
 }
 

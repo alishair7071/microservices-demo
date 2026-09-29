@@ -4,6 +4,7 @@ const config = require('./config');
 const createNotificationRoutes = require('./routes/notification-routes');
 const { startNotificationConsumer } = require('./messaging/notification-consumer');
 const { startKafkaConsumer } = require('./kafka/kafka-consumer');
+const { startService } = require('./consul-registration');
 
 const app = express();
 app.use(cors());
@@ -16,7 +17,8 @@ const state = { ready: false };
 app.use(createNotificationRoutes(notifications, kafkaNotifications, state));
 
 async function start() {
-  app.listen(config.port, () => console.log(`Notification service listening on port ${config.port}`));
+  await startService(app, 'notification-service', config.port);
+  console.log(`Notification service listening on port ${config.port}`);
   startNotificationConsumer(notifications, state);
   startKafkaConsumer(kafkaNotifications);
 }
