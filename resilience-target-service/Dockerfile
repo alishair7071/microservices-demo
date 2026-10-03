@@ -3,6 +3,7 @@ WORKDIR /app
 COPY resilience-target-service/package*.json ./
 RUN npm ci --omit=dev
 COPY shared/consul-registration.js ./consul-registration.js
+COPY shared/correlated-logger.js ./correlated-logger.js
 COPY resilience-target-service/trace-demo.js .
 COPY resilience-target-service/server.js .
 ENV OTEL_SERVICE_NAME=resilience-target-service \

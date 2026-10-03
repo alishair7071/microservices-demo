@@ -3,6 +3,7 @@ WORKDIR /app
 COPY resilience-lab-service/package*.json ./
 RUN npm ci --omit=dev
 COPY shared/consul-registration.js ./consul-registration.js
+COPY shared/correlated-logger.js ./correlated-logger.js
 COPY resilience-lab-service ./
 ENV OTEL_SERVICE_NAME=resilience-lab-service \
     OTEL_TRACES_EXPORTER=otlp \
