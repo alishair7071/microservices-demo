@@ -7,6 +7,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'resilience-
 app.use('/circuit-breaker', require('./labs/circuit-breaker'));
 app.use('/retry', require('./labs/retry'));
 app.use('/bulkhead', require('./labs/bulkhead'));
+app.use('/manual-trace', require('./labs/manual-trace'));
 
 startService(app, 'resilience-lab-service', 4020)
   .then(() => console.log('Resilience Lab Service listening on port 4020'))

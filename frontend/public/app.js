@@ -7,6 +7,7 @@ const gatewayTestResult = document.querySelector('#gateway-test-result');
 const circuitBreakerResult = document.querySelector('#circuit-breaker-result');
 const retryDemoResult = document.querySelector('#retry-demo-result');
 const bulkheadDemoResult = document.querySelector('#bulkhead-demo-result');
+const manualTraceResult = document.querySelector('#manual-trace-result');
 const eventAccountSelect = document.querySelector('#event-account-select');
 const eventAccountAmount = document.querySelector('#event-account-amount');
 const eventAccountMessage = document.querySelector('#event-account-message');
@@ -135,6 +136,37 @@ async function runBulkheadDemo() {
   }));
 
   button.disabled = false;
+}
+
+async function runManualTraceDemo() {
+  const button = document.querySelector('#send-manual-trace');
+  button.disabled = true;
+  manualTraceResult.innerHTML = '<div class="gateway-result">Following the request...</div>';
+
+  try {
+    const response = await fetch('http://localhost:8000/api/manual-trace-demo', { method: 'POST' });
+    const data = await response.json();
+    manualTraceResult.innerHTML = `
+      <div class="gateway-result ${response.ok ? '' : 'error'}">
+        <strong>${escapeHtml(data.error || (response.ok ? 'Record saved and read from MongoDB' : 'Request failed'))}</strong>
+        <span>Trace ID: ${escapeHtml(data.traceId || 'not created')}</span>
+        ${data.record ? `<span>MongoDB record: ${escapeHtml(data.record.id)} · ${escapeHtml(formatTimestamp(data.record.createdAt))}</span>` : ''}
+        <span>Sent to Jaeger: ${data.jaegerSent ? 'yes' : 'no'}</span>
+        ${data.jaegerSent ? `<a href="http://localhost:16686/trace/${encodeURIComponent(data.traceId)}" target="_blank" rel="noopener noreferrer">Open this trace in Jaeger</a>` : ''}
+      </div>
+      ${(data.steps || []).map((step) => `
+        <div class="gateway-result">
+          <strong>${escapeHtml(step.service)}: ${escapeHtml(step.name)}</strong>
+          <span>Span ID: ${escapeHtml(step.spanId)} · Parent: ${escapeHtml(step.parentSpanId || 'none (root span)')}</span>
+          <span>Duration: ${escapeHtml(step.durationMs)} ms</span>
+        </div>
+      `).join('')}
+    `;
+  } catch (error) {
+    manualTraceResult.innerHTML = `<div class="gateway-result error">${escapeHtml(error.message)}</div>`;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function formatAccountMoney(amountCents) {
@@ -593,6 +625,7 @@ document.querySelector('#test-rate-limit').addEventListener('click', testRateLim
 document.querySelector('#send-circuit-request').addEventListener('click', runCircuitBreakerDemo);
 document.querySelector('#send-retry-request').addEventListener('click', runRetryDemo);
 document.querySelector('#send-bulkhead-requests').addEventListener('click', runBulkheadDemo);
+document.querySelector('#send-manual-trace').addEventListener('click', runManualTraceDemo);
 document.querySelector('#open-demo-account').addEventListener('click', openEventSourcingAccount);
 document.querySelector('#event-account-select').addEventListener('change', loadEventSourcingAccount);
 document.querySelector('#deposit-account-money').addEventListener('click', () => changeEventSourcingBalance('deposit'));

@@ -34,6 +34,14 @@ services:
           - /api/circuit-breaker-demo
         strip_path: true
 
+  - name: manual-trace-demo
+    url: http://resilience-lab-service.service.consul:4020/manual-trace
+    routes:
+      - name: manual-trace-demo
+        paths:
+          - /api/manual-trace-demo
+        strip_path: true
+
   - name: retry-demo
     url: http://resilience-lab-service.service.consul:4020/retry
     routes:

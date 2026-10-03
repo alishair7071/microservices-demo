@@ -1,5 +1,6 @@
 const http = require('http');
 const { startService } = require('./consul-registration');
+const { handleManualTrace } = require('./manual-trace');
 
 const port = 4010;
 
@@ -13,6 +14,11 @@ const app = http.createServer((request, response) => {
 
   if (url.pathname === '/health') {
     return sendJson(response, 200, { status: 'ok', service: 'resilience-target-service' });
+  }
+
+  if (url.pathname === '/manual-trace' && request.method === 'POST') {
+    handleManualTrace(request, response);
+    return;
   }
 
   // Simulate a temporary problem: attempts 1 and 2 fail; attempt 3 succeeds.

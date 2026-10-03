@@ -257,6 +257,20 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
+            <h2>Manual Trace Lab</h2>
+            <p class="subtle">Follow one request from the Lab Service to the Target Service and MongoDB. See each span ID and its parent.</p>
+          </div>
+          <span class="mono">Trace / demo</span>
+        </div>
+        <div class="gateway-actions">
+          <button class="secondary" id="send-manual-trace" type="button">Send Traced Request</button>
+        </div>
+        <div id="manual-trace-result" class="collection" aria-live="polite"></div>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
             <h2>RabbitMQ Email Service A</h2>
             <p class="subtle">RabbitMQ consumer / shared queue.</p>
           </div>
