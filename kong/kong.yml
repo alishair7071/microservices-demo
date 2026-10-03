@@ -34,12 +34,12 @@ services:
           - /api/circuit-breaker-demo
         strip_path: true
 
-  - name: manual-trace-demo
-    url: http://resilience-lab-service.service.consul:4020/manual-trace
+  - name: otel-trace-demo
+    url: http://resilience-lab-service.service.consul:4020/trace-demo
     routes:
-      - name: manual-trace-demo
+      - name: otel-trace-demo
         paths:
-          - /api/manual-trace-demo
+          - /api/otel-trace-demo
         strip_path: true
 
   - name: retry-demo

@@ -73,3 +73,9 @@ Open a demo account, then deposit or withdraw money. Each accepted command appen
 ## Retry lab
 
 Click **Send Retry Request** once in the frontend. The Resilience Lab Service makes a safe GET request to the Resilience Target Service. The target returns `503` for attempts 1 and 2, then `200` for attempt 3. The lab waits `200–300 ms` and `400–500 ms` between attempts (exponential backoff plus jitter). The frontend shows every attempt, wait, and the final result. The retry logic is in `resilience-lab-service/labs/retry.js`.
+
+## OpenTelemetry tracing lab
+
+Click **Send Traced Request** to make a request through the Lab Service, Target Service, and MongoDB. Both Node services preload `@opentelemetry/auto-instrumentations-node/register` from their `npm start` scripts. Environment variables in their Dockerfiles set the service names and OTLP endpoint. The package instruments HTTP, Express, Undici `fetch`, and MongoDB without tracing code in the route handlers. In Jaeger, search for service `resilience-lab-service` and operation `POST /trace-demo` to exclude health-check traces. Automatic instrumentation does not add a trace ID to the browser response. Jaeger runs separately from this Compose stack at `localhost:16686`, and the services export to `host.docker.internal:4318` by default.
+
+Select **Simulate a failure in Target Service before the MongoDB insert** to make MongoDB reject an invalid query. The Target responds with HTTP 503 and the Lab responds with HTTP 502. Automatic instrumentation may mark the failed MongoDB operation and the HTTP 5xx spans as errors. The failure does not insert a MongoDB record.

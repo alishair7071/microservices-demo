@@ -257,15 +257,16 @@
       <section class="panel event-panel">
         <div class="panel-heading">
           <div>
-            <h2>Manual Trace Lab</h2>
-            <p class="subtle">Follow one request from the Lab Service to the Target Service and MongoDB. See each span ID and its parent.</p>
+            <h2>OpenTelemetry Trace Lab</h2>
+            <p class="subtle">OpenTelemetry automatically traces the HTTP call and MongoDB work. In Jaeger, search service resilience-lab-service and operation POST /trace-demo.</p>
           </div>
           <span class="mono">Trace / demo</span>
         </div>
         <div class="gateway-actions">
-          <button class="secondary" id="send-manual-trace" type="button">Send Traced Request</button>
+          <button class="secondary" id="send-otel-trace" type="button">Send Traced Request</button>
         </div>
-        <div id="manual-trace-result" class="collection" aria-live="polite"></div>
+        <label class="check-label"><input id="fail-otel-trace-target" type="checkbox"> Simulate a failure in Target Service before the MongoDB insert</label>
+        <div id="otel-trace-result" class="collection" aria-live="polite"></div>
       </section>
 
       <section class="panel event-panel">

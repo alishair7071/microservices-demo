@@ -1,6 +1,6 @@
 const http = require('http');
 const { startService } = require('./consul-registration');
-const { handleManualTrace } = require('./manual-trace');
+const { handleTraceDemo } = require('./trace-demo');
 
 const port = 4010;
 
@@ -16,8 +16,8 @@ const app = http.createServer((request, response) => {
     return sendJson(response, 200, { status: 'ok', service: 'resilience-target-service' });
   }
 
-  if (url.pathname === '/manual-trace' && request.method === 'POST') {
-    handleManualTrace(request, response);
+  if (url.pathname === '/trace-demo' && request.method === 'POST') {
+    handleTraceDemo(request, response);
     return;
   }
 
